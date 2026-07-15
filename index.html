@@ -1308,6 +1308,48 @@ function weightSumBadge(rows, containerId){
   return `<span class="weight-sum-badge ${ok?'weight-sum-ok':'weight-sum-bad'}">Range sums: low ${lo.toFixed(0)}% – high ${hi.toFixed(0)}% ${ok? '(plausible)':'(check — should bracket 100%)'}</span>`;
 }
 
+function clampPct(value){
+  // Parses free user input into a number in [0,100] or null if not a valid number.
+  // Used for every new structured cap/range field so bad input can never silently
+  // become NaN or a negative/absurd percentage in the data.
+  if(value === "" || value === null || value === undefined) return null;
+  const n = parseFloat(value);
+  if(isNaN(n)) return null;
+  return Math.max(0, Math.min(100, n));
+}
+
+function capFieldsHtml(minVal, maxVal, capVal, capBasis, onMinCall, onMaxCall, onCapCall, onBasisCall){
+  // Shared row of 4 numeric-only inputs (sleeve min%, sleeve max%, position cap %, cap basis)
+  // reused across styleSleeves, strategicAllocationRanges, variant allocations, and the
+  // single-sleeve construction-rules block. Kept as one function so all four editors stay
+  // visually and behaviorally identical rather than drifting apart over time.
+  // on*Call are plain strings holding a full JS call expression missing only the closing
+  // `,this.value)` -- e.g. "updateSleeveNumericField('P1',0,'sleeveMinPct'" -- so this
+  // function only ever does simple string concatenation, never regex post-processing.
+  const mv = (minVal===null||minVal===undefined) ? '' : minVal;
+  const xv = (maxVal===null||maxVal===undefined) ? '' : maxVal;
+  const cv = (capVal===null||capVal===undefined) ? '' : capVal;
+  return `
+    <div class="cap-fields-row" style="display:flex; gap:8px; align-items:center; margin:6px 0 10px; flex-wrap:wrap;">
+      <label style="font-size:.68rem; color:var(--text-faint);">Sleeve min %
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${mv}" onchange="${onMinCall},this.value)" placeholder="—">
+      </label>
+      <label style="font-size:.68rem; color:var(--text-faint);">Sleeve max %
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${xv}" onchange="${onMaxCall},this.value)" placeholder="—">
+      </label>
+      <label style="font-size:.68rem; color:var(--text-faint);">Position cap %
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${cv}" onchange="${onCapCall},this.value)" placeholder="—">
+      </label>
+      <label style="font-size:.68rem; color:var(--text-faint);">Cap basis
+        <select class="input-sm" onchange="${onBasisCall},this.value)">
+          <option value="portfolio" ${capBasis==='portfolio'?'selected':''}>% of portfolio</option>
+          <option value="sleeve" ${capBasis==='sleeve'?'selected':''}>% of sleeve</option>
+        </select>
+      </label>
+    </div>
+  `;
+}
+
 function renderEdit(id){
   const p = getProduct(id);
   const entry = getEntry(id);
@@ -1353,11 +1395,18 @@ function renderEdit(id){
   const rules = p.portfolioConstructionRules || { stockCountRange:"", singleStockCap:"", sectorCap:"", cashBuffer:"" };
   html += `
     <div class="field-row"><div class="field-label">Stock Count Range</div><input type="text" class="input-sm" value="${escAttr(rules.stockCountRange)}" onchange="updateConstructionRule('${id}','stockCountRange',this.value)" placeholder="e.g. 15-25"></div>
-    <div class="field-row"><div class="field-label">Single-Stock Cap (%)</div><input type="text" class="input-sm" value="${escAttr(rules.singleStockCap)}" onchange="updateConstructionRule('${id}','singleStockCap',this.value)" placeholder="e.g. 10%"></div>
-    <div class="field-row"><div class="field-label">Sector Cap (%)</div><input type="text" class="input-sm" value="${escAttr(rules.sectorCap)}" onchange="updateConstructionRule('${id}','sectorCap',this.value)" placeholder="e.g. 30%"></div>
+    <div class="field-row"><div class="field-label">Single-Stock Cap (%) <span class="s-label-inline">legacy text</span></div><input type="text" class="input-sm" value="${escAttr(rules.singleStockCap)}" onchange="updateConstructionRule('${id}','singleStockCap',this.value)" placeholder="e.g. 10%"></div>
+    <div class="field-row"><div class="field-label">Sector Cap (%) <span class="s-label-inline">legacy text</span></div><input type="text" class="input-sm" value="${escAttr(rules.sectorCap)}" onchange="updateConstructionRule('${id}','sectorCap',this.value)" placeholder="e.g. 30%"></div>
     <div class="field-row"><div class="field-label">Cash Buffer (%)</div><input type="text" class="input-sm" value="${escAttr(rules.cashBuffer)}" onchange="updateConstructionRule('${id}','cashBuffer',this.value)" placeholder="e.g. 0-5%"></div>
   `;
-  html += `<div class="callout">These caps apply as hard rules during rebalancing/construction — keep them numeric and unambiguous (e.g. "10%" not "around ten percent") since they'll be checked mechanically once the compliance engine (see Roadmap) is built.</div>`;
+  html += `<div class="field-label" style="margin-top:14px; margin-bottom:6px;">Compliance-Engine Numeric Fields <span class="s-label-inline">structured</span></div>`;
+  html += capFieldsHtml(rules.sleeveMinPct, rules.sleeveMaxPct, rules.positionCapPct, rules.positionCapBasis,
+    `updateConstructionRuleNumeric('${id}','sleeveMinPct'`,
+    `updateConstructionRuleNumeric('${id}','sleeveMaxPct'`,
+    `updateConstructionRuleNumeric('${id}','positionCapPct'`,
+    `updateConstructionRule('${id}','positionCapBasis'`
+  );
+  html += `<div class="callout">The "Single-Stock Cap"/"Sector Cap" text fields above are the original note prose and stay editable for the document itself. The numeric fields just above are what the compliance engine actually reads — for a single-sleeve product like this one, "Sleeve min/max %" describes the whole portfolio's equity exposure band (often 100% min/max if fully invested) and "Position cap %" is the actual per-stock limit. Keep both in sync manually when a cap changes; they are not auto-derived from each other.</div>`;
   html += `</div>`;
 
   // Style sleeves editor (Product 1-style)
@@ -1373,6 +1422,12 @@ function renderEdit(id){
           <input type="text" value="${escAttr(s.indicativeNames||'')}" onchange="updateSleeveField('${id}',${i},'indicativeNames',this.value)" placeholder="Indicative names">
           <button class="row-remove" onclick="removeSleeve('${id}',${i})">×</button>
         </div>
+        ${capFieldsHtml(s.sleeveMinPct, s.sleeveMaxPct, s.positionCapPct, s.positionCapBasis,
+          `updateSleeveNumericField('${id}',${i},'sleeveMinPct'`,
+          `updateSleeveNumericField('${id}',${i},'sleeveMaxPct'`,
+          `updateSleeveNumericField('${id}',${i},'positionCapPct'`,
+          `updateSleeveField('${id}',${i},'positionCapBasis'`
+        )}
         <textarea rows="2" style="margin-bottom:14px;" onchange="updateSleeveField('${id}',${i},'criteria',this.value)" placeholder="Selection criteria">${escText(s.criteria||'')}</textarea>
       `;
     });
@@ -1393,6 +1448,12 @@ function renderEdit(id){
           <div></div>
           <button class="row-remove" onclick="removeAllocRow('${id}','strategicAllocationRanges',${i})">×</button>
         </div>
+        ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionCapPct, a.positionCapBasis,
+          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMinPct'`,
+          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMaxPct'`,
+          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionCapPct'`,
+          `updateAllocField('${id}','strategicAllocationRanges',${i},'positionCapBasis'`
+        )}
       `;
     });
     html += weightSumBadge(p.strategicAllocationRanges);
@@ -1424,6 +1485,12 @@ function renderEdit(id){
               <div></div>
               <button class="row-remove" onclick="removeVariantAllocRow('${id}',${vi},${ai})">×</button>
             </div>
+            ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionCapPct, a.positionCapBasis,
+              `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMinPct'`,
+              `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMaxPct'`,
+              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionCapPct'`,
+              `updateVariantAllocField('${id}',${vi},${ai},'positionCapBasis'`
+            )}
           `;
         });
         html += weightSumBadge(v.allocation);
@@ -1480,8 +1547,19 @@ function updateConstructionRule(id, field, value){
   p.portfolioConstructionRules[field] = value;
   saveToLocalStorage();
 }
+function updateConstructionRuleNumeric(id, field, value){
+  const p = getProduct(id);
+  if(!p.portfolioConstructionRules) p.portfolioConstructionRules = {};
+  p.portfolioConstructionRules[field] = clampPct(value);
+  saveToLocalStorage();
+}
 function updateSleeveField(id, idx, field, value){
   getProduct(id).styleSleeves[idx][field] = value;
+  saveToLocalStorage();
+  refreshWeightBadges(id);
+}
+function updateSleeveNumericField(id, idx, field, value){
+  getProduct(id).styleSleeves[idx][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
@@ -1497,6 +1575,11 @@ function removeSleeve(id, idx){
 }
 function updateAllocField(id, listName, idx, field, value){
   getProduct(id)[listName][idx][field] = value;
+  saveToLocalStorage();
+  refreshWeightBadges(id);
+}
+function updateAllocNumericField(id, listName, idx, field, value){
+  getProduct(id)[listName][idx][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
@@ -1516,6 +1599,11 @@ function updateVariantField(id, vi, field, value){
 }
 function updateVariantAllocField(id, vi, ai, field, value){
   getProduct(id).variants[vi].allocation[ai][field] = value;
+  saveToLocalStorage();
+  refreshWeightBadges(id);
+}
+function updateVariantAllocNumericField(id, vi, ai, field, value){
+  getProduct(id).variants[vi].allocation[ai][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
