@@ -464,13 +464,21 @@ const SUPABASE_ANON_KEY = "sb_publishable_YMEOr-QkwD2tlkRsWQEYxg_1dSm2ygB";
 // .createClient on it would throw synchronously, silently halting every line of
 // script below it — including the auth listener that's supposed to dismiss the
 // boot spinner. Catch that here and show a real error instead of an infinite spinner.
-let supabase = null;
+//
+// NOTE: the UMD build of @supabase/supabase-js exposes its library namespace as
+// window.supabase (containing .createClient). Our app-level client instance must
+// NOT be named `supabase` at top-level script scope, because a top-level
+// `let`/`const supabase` collides with that existing global identifier and throws
+// "Identifier 'supabase' has already been declared" -- a parse-time SyntaxError
+// that kills the entire script before anything (including this try/catch) runs.
+// Renamed to `sb` to avoid the collision entirely.
+let sb = null;
 let supabaseInitError = null;
 try {
   if (typeof window.supabase === "undefined" || !window.supabase || typeof window.supabase.createClient !== "function") {
     throw new Error("Supabase client library did not load from the CDN (cdn.jsdelivr.net). This is usually an ad-blocker, corporate firewall, or network issue blocking that domain.");
   }
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } catch (err) {
   supabaseInitError = err;
   console.error("Supabase init failed:", err);
@@ -520,7 +528,7 @@ async function handleLoginSubmit(evt){
   btn.disabled = true;
   btn.textContent = "Signing in…";
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if(error){
       errEl.textContent = error.message || "Invalid email or password.";
       errEl.classList.add("show");
@@ -540,7 +548,7 @@ async function handleLoginSubmit(evt){
 async function handleSignOut(){
   if(!confirm("Sign out of Vriksha Product Note Studio?")) return;
   try {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   } catch(err){
     console.warn("signOut failed", err);
   }
@@ -565,12 +573,12 @@ function dismissGlobalError(){
 // them into the same state.products[id] = {current, status, archived, versions}
 // shape the rest of the app already expects.
 async function loadAllFromSupabase(){
-  const { data: productRows, error: prodErr } = await supabase
+  const { data: productRows, error: prodErr } = await sb
     .from('products')
     .select('*');
   if(prodErr) throw new Error("Failed to load products: " + prodErr.message);
 
-  const { data: versionRows, error: verErr } = await supabase
+  const { data: versionRows, error: verErr } = await sb
     .from('product_versions')
     .select('*')
     .order('version_number', { ascending: true });
@@ -632,9 +640,9 @@ async function persistProduct(id){
   const entry = state.products[id];
   if(!entry) return;
   try {
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } = await sb.auth.getUser();
     const uid = userData && userData.user ? userData.user.id : null;
-    const { error } = await supabase
+    const { error } = await sb
       .from('products')
       .update({
         data: entry.current,
@@ -710,9 +718,9 @@ async function createProductFromTemplate(templateId, newName, newCode) {
     versions: []
   };
   try {
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } = await sb.auth.getUser();
     const uid = userData && userData.user ? userData.user.id : null;
-    const { error } = await supabase.from('products').insert({
+    const { error } = await sb.from('products').insert({
       id: newId,
       code: cloned.code,
       name: cloned.name,
@@ -1564,10 +1572,10 @@ async function publishProduct(id){
   const timestamp = new Date().toISOString();
 
   try {
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } = await sb.auth.getUser();
     const uid = userData && userData.user ? userData.user.id : null;
 
-    const { error: verErr } = await supabase.from('product_versions').insert({
+    const { error: verErr } = await sb.from('product_versions').insert({
       product_id: id,
       version_number: versionNum,
       note: note || "",
@@ -1576,7 +1584,7 @@ async function publishProduct(id){
     });
     if(verErr) throw verErr;
 
-    const { error: prodErr } = await supabase.from('products')
+    const { error: prodErr } = await sb.from('products')
       .update({ status: "published", data: snapshotData, updated_by: uid })
       .eq('id', id);
     if(prodErr) throw prodErr;
@@ -2103,7 +2111,7 @@ if (supabaseInitError) {
   showBootError(supabaseInitError.message + "\n\nTry reloading the page. If this keeps happening, the network you're on may be blocking cdn.jsdelivr.net.");
 } else {
   try {
-    supabase.auth.onAuthStateChange((event, session) => {
+    sb.auth.onAuthStateChange((event, session) => {
       authListenerFired = true;
       if(session && session.user){
         bootAppForUser(session.user);
