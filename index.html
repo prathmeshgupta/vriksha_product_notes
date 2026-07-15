@@ -386,6 +386,14 @@
   <div>Loading Vriksha Product Note Studio…</div>
 </div>
 
+<div id="bootError" class="boot-loading" style="display:none;">
+  <div style="max-width:480px; text-align:center; display:flex; flex-direction:column; gap:14px; align-items:center;">
+    <div style="font-size:15px; font-weight:600; color:#f2b8b8;">Couldn't load the app</div>
+    <div id="bootErrorMsg" style="font-size:13px; line-height:1.6; opacity:0.85;"></div>
+    <button class="btn primary" onclick="location.reload()" style="margin-top:6px;">Retry</button>
+  </div>
+</div>
+
 <div id="loginScreen" class="login-wrap" style="display:none;">
   <div class="login-card">
     <div class="login-brand">Vriksha</div>
@@ -450,7 +458,23 @@ const BASE_PRODUCTS = [{"id":"P1","code":"DSOP","name":"Complete Discretionary S
 
 const SUPABASE_URL = "https://djrzjwhqzenykzfuzfhj.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YMEOr-QkwD2tlkRsWQEYxg_1dSm2ygB";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Guarded client creation: if the Supabase CDN script failed to load (ad-blocker,
+// firewall, offline, CDN outage), window.supabase is undefined and calling
+// .createClient on it would throw synchronously, silently halting every line of
+// script below it — including the auth listener that's supposed to dismiss the
+// boot spinner. Catch that here and show a real error instead of an infinite spinner.
+let supabase = null;
+let supabaseInitError = null;
+try {
+  if (typeof window.supabase === "undefined" || !window.supabase || typeof window.supabase.createClient !== "function") {
+    throw new Error("Supabase client library did not load from the CDN (cdn.jsdelivr.net). This is usually an ad-blocker, corporate firewall, or network issue blocking that domain.");
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (err) {
+  supabaseInitError = err;
+  console.error("Supabase init failed:", err);
+}
 
 // ---------- STATE ----------
 // state.products[id] = { current: {...editableFields}, status: 'draft'|'published', archived: bool, versions: [{...snapshot, meta}] }
@@ -2044,6 +2068,15 @@ function exportDocx(pid){
 // the lifetime of the tab (sign-in, sign-out, token refresh, etc).
 
 let appBooted = false; // guards against double-initializing the app view on repeated SIGNED_IN events
+let authListenerFired = false; // guards the boot-timeout fallback below
+
+function showBootError(msg){
+  document.getElementById("bootLoading").style.display = "none";
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appRoot").style.display = "none";
+  document.getElementById("bootErrorMsg").textContent = msg;
+  document.getElementById("bootError").style.display = "flex";
+}
 
 async function bootAppForUser(user){
   currentUser = { id: user.id, email: user.email };
@@ -2063,20 +2096,41 @@ async function bootAppForUser(user){
   }
 }
 
-supabase.auth.onAuthStateChange((event, session) => {
-  if(session && session.user){
-    bootAppForUser(session.user);
-  } else {
-    currentUser = null;
-    appBooted = false;
-    state = { products: {}, lastSaved: null };
-    showLoginScreen();
+// If Supabase failed to initialize (CDN blocked, library error), stop here with a
+// visible error instead of leaving the spinner running with a null `supabase` object
+// that would throw on first use anyway.
+if (supabaseInitError) {
+  showBootError(supabaseInitError.message + "\n\nTry reloading the page. If this keeps happening, the network you're on may be blocking cdn.jsdelivr.net.");
+} else {
+  try {
+    supabase.auth.onAuthStateChange((event, session) => {
+      authListenerFired = true;
+      if(session && session.user){
+        bootAppForUser(session.user);
+      } else {
+        currentUser = null;
+        appBooted = false;
+        state = { products: {}, lastSaved: null };
+        showLoginScreen();
+      }
+    });
+  } catch(err){
+    console.error("Failed to register auth listener:", err);
+    showBootError("Failed to start the authentication check: " + err.message + "\n\nTry reloading the page.");
   }
-});
 
-// onAuthStateChange fires once on page load with the restored session (if any),
-// so no separate getSession() bootstrap call is needed — the listener above
-// covers both the initial load and every subsequent auth transition.
+  // onAuthStateChange is documented to fire once on page load with the restored
+  // session (if any), so no separate getSession() bootstrap call should be needed.
+  // But relying on a single library callback with zero fallback is exactly what
+  // caused the app to get stuck on the loading spinner before — if it hasn't fired
+  // within 8 seconds (slow network, transient Supabase issue, unexpected library
+  // behavior), show an error instead of spinning forever.
+  setTimeout(() => {
+    if (!authListenerFired) {
+      showBootError("The app is taking longer than expected to start (no response from Supabase after 8 seconds). This usually means a slow or blocked network connection to " + SUPABASE_URL + ".");
+    }
+  }, 8000);
+}
 </script>
 </body>
 </html>
