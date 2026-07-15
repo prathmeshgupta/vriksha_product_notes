@@ -12,6 +12,8 @@
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
 
@@ -432,6 +434,7 @@
     <div class="nav-group-title">Tools</div>
     <div class="nav-item" onclick="showView('overview')" id="nav-overview">Overview</div>
     <div class="nav-item" onclick="showView('create')" id="nav-create">+ New Product</div>
+    <div class="nav-item" onclick="showView('templates')" id="nav-templates">Manage Templates</div>
     <div class="nav-item" onclick="showView('archive')" id="nav-archive">Archived Products</div>
     <div class="nav-item" onclick="showView('csv')" id="nav-csv">CSV Constituent Upload</div>
     <div class="nav-item" onclick="showView('backup')" id="nav-backup">Backup &amp; Sync</div>
@@ -487,7 +490,7 @@ try {
 // ---------- STATE ----------
 // state.products[id] = { current: {...editableFields}, status: 'draft'|'published', archived: bool, versions: [{...snapshot, meta}] }
 // Shape is identical to the localStorage-era version so every render/edit function below is unchanged.
-let state = { products: {}, lastSaved: null };
+let state = { products: {}, templates: {}, lastSaved: null };
 let currentUser = null; // { id, email }
 
 // ---------- AUTH ----------
@@ -584,6 +587,23 @@ async function loadAllFromSupabase(){
     .order('version_number', { ascending: true });
   if(verErr) throw new Error("Failed to load version history: " + verErr.message);
 
+  // Templates live in their own table, deliberately isolated from `products` so the
+  // normal product edit/archive/delete code paths never touch them. A failure here
+  // shouldn't block the whole app from loading — templates only matter on the Create
+  // and Manage Templates screens — so this is soft-failed with a console warning and
+  // a visible (but non-blocking) banner, rather than thrown.
+  let templateRows = [];
+  try {
+    const { data: tRows, error: tErr } = await sb
+      .from('templates')
+      .select('*');
+    if(tErr) throw tErr;
+    templateRows = tRows || [];
+  } catch(err){
+    console.error("Failed to load templates:", err);
+    showGlobalError("Could not load archetype templates: " + err.message + " — Create New Product and Manage Templates may be incomplete until this clears.");
+  }
+
   const versionsByProduct = {};
   (versionRows || []).forEach(v=>{
     if(!versionsByProduct[v.product_id]) versionsByProduct[v.product_id] = [];
@@ -605,8 +625,28 @@ async function loadAllFromSupabase(){
     };
   });
   state.products = newProducts;
+
+  const newTemplates = {};
+  templateRows.forEach(row=>{
+    newTemplates[row.id] = {
+      id: row.id,
+      name: row.name,
+      description: row.description || "",
+      archetype: row.archetype,
+      data: row.data
+    };
+  });
+  state.templates = newTemplates;
+
   state.lastSaved = new Date().toISOString();
 }
+
+function getAllTemplates(){
+  return Object.keys(state.templates)
+    .map(id => state.templates[id])
+    .sort((a,b)=> a.name.localeCompare(b.name));
+}
+function getTemplate(id){ return state.templates[id]; }
 
 async function refreshFromSupabase(){
   try {
@@ -620,6 +660,7 @@ async function refreshFromSupabase(){
     else if(currentView==="history" && currentProductId) renderHistory(currentProductId);
     else if(currentView==="archive") renderArchiveView();
     else if(currentView==="create") renderCreateView();
+    else if(currentView==="templates") renderTemplatesView();
     updateSyncStatus();
   } catch(err){
     showGlobalError("Refresh failed: " + err.message);
@@ -702,16 +743,11 @@ function nextProductId() {
   return "PN" + n;
 }
 
-// ---------- CREATE (template-based) ----------
-async function createProductFromTemplate(templateId, newName, newCode) {
-  const template = getProduct(templateId);
-  const newId = nextProductId();
-  const cloned = JSON.parse(JSON.stringify(template));
-  cloned.id = newId;
-  cloned.code = newCode || (template.code + "-NEW");
-  cloned.name = newName || (template.name + " (Copy)");
-  cloned.shortName = newName || (template.shortName ? template.shortName + " (Copy)" : cloned.name);
-  state.products[newId] = {
+// ---------- CREATE (3 explicit paths: blank / from archetype template / from existing product) ----------
+// Shared low-level insert — all three creation paths converge here so there is exactly
+// one place that writes a new row into `products`.
+async function insertNewProduct(cloned){
+  state.products[cloned.id] = {
     current: cloned,
     status: "draft",
     archived: false,
@@ -721,7 +757,7 @@ async function createProductFromTemplate(templateId, newName, newCode) {
     const { data: userData } = await sb.auth.getUser();
     const uid = userData && userData.user ? userData.user.id : null;
     const { error } = await sb.from('products').insert({
-      id: newId,
+      id: cloned.id,
       code: cloned.code,
       name: cloned.name,
       short_name: cloned.shortName || null,
@@ -737,7 +773,67 @@ async function createProductFromTemplate(templateId, newName, newCode) {
   } catch(err){
     showGlobalError("Failed to create new product in the database: " + err.message + " — the product exists only in this browser tab until this is resolved.");
   }
-  return newId;
+  return cloned.id;
+}
+
+// Path 1: true blank slate — minimal shape, every field either empty or a sane default.
+// No sleeves/variants/allocation ranges are pre-filled since a blank product has no
+// implied archetype; the user builds that structure in the editor from scratch.
+function blankProductShape(){
+  return {
+    code: "",
+    name: "",
+    shortName: "",
+    category: "Discretionary — Single Asset Class (Equity)",
+    assetClasses: [],
+    objective: "",
+    philosophy: "",
+    benchmark: "",
+    rebalanceFrequency: "",
+    riskProfile: "",
+    suitability: "",
+    minInvestment: "",
+    fees: "",
+    taxNote: "",
+    keyRisks: []
+  };
+}
+async function createBlankProduct(newName, newCode){
+  const newId = nextProductId();
+  const cloned = blankProductShape();
+  cloned.id = newId;
+  cloned.code = newCode || newId;
+  cloned.name = newName;
+  cloned.shortName = newName;
+  return insertNewProduct(cloned);
+}
+
+// Path 2: from an archetype template (the `templates` table — placeholder structure,
+// never real client content).
+async function createProductFromTemplate(templateId, newName, newCode) {
+  const template = getTemplate(templateId);
+  if(!template) throw new Error("Template not found: " + templateId);
+  const newId = nextProductId();
+  const cloned = JSON.parse(JSON.stringify(template.data));
+  cloned.id = newId;
+  cloned.code = newCode || newId;
+  cloned.name = newName;
+  cloned.shortName = newName;
+  return insertNewProduct(cloned);
+}
+
+// Path 3: from an existing live product — full deep clone of real content, distinct
+// from the template path so it's never confused with "products doubling as templates."
+async function createProductFromExisting(sourceProductId, newName, newCode) {
+  const source = getProduct(sourceProductId);
+  if(!source) throw new Error("Source product not found: " + sourceProductId);
+  const newId = nextProductId();
+  const cloned = JSON.parse(JSON.stringify(source));
+  cloned.id = newId;
+  cloned.code = newCode || (source.code + "-COPY");
+  cloned.name = newName;
+  cloned.shortName = newName;
+  return insertNewProduct(cloned);
 }
 
 // ---------- ARCHIVE / UNARCHIVE ----------
@@ -839,6 +935,7 @@ function showView(v){
   if(v==="backup") renderBackupView();
   if(v==="archive") renderArchiveView();
   if(v==="create") renderCreateView();
+  if(v==="templates") renderTemplatesView();
   renderNav();
 }
 
@@ -905,17 +1002,70 @@ function renderOverview(){
   });
 }
 
-// ---------- CREATE NEW PRODUCT ----------
+// ---------- CREATE NEW PRODUCT (3 explicit paths) ----------
+let createPath = "blank"; // "blank" | "template" | "existing"
+
 function renderCreateView(){
+  createPath = "blank";
+  renderCreateViewBody();
+}
+
+function setCreatePath(path){
+  createPath = path;
+  renderCreateViewBody();
+}
+
+function renderCreateViewBody(){
   const main = document.getElementById("main");
   const all = getAllProducts();
-  const options = all.map(p=>`<option value="${p.id}">${p.id} — ${p.name} (${p.category})</option>`).join("");
-  main.innerHTML = `
-    <div class="topbar"><div><h1>New Product Note</h1><div class="topbar-sub">Clone the closest existing product as a starting shape, then edit</div></div></div>
-    <div class="callout">Choose whichever existing product has the closest structure to what you're building — a risk-profiled variant set, a goal-based glide path, a style-sleeve equity product, etc. This copies its field structure (not its content) so you're editing, not building from a blank form.</div>
-    <div class="card">
-      <div class="field-row"><div class="field-label">Template</div>
-        <select id="createTemplateSelect">${options}</select>
+  const templates = getAllTemplates();
+
+  const tabBtn = (path, label) =>
+    `<button class="btn ${createPath===path ? 'primary' : ''}" onclick="setCreatePath('${path}')">${label}</button>`;
+
+  let bodyHtml = "";
+  if(createPath === "blank"){
+    bodyHtml = `
+      <div class="callout">Starts from an empty product with no pre-filled sleeves, variants, or allocation ranges. Use this when the product doesn't match any existing archetype and you want to build the structure yourself in the editor.</div>
+      <div class="field-row"><div class="field-label">New Product Name</div>
+        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
+      </div>
+      <div class="field-row"><div class="field-label">New Product Code</div>
+        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
+        <button class="btn" onclick="showView('overview')">Cancel</button>
+      </div>
+    `;
+  } else if(createPath === "template"){
+    const options = templates.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+    const selectedId = templates.length ? templates[0].id : null;
+    bodyHtml = templates.length ? `
+      <div class="callout">Starts from a clean archetype structure — style-sleeve equity, strategic allocation, risk-profiled variants, or goal-based glide path — with placeholder text, not real client content. Manage the available archetypes from <a href="#" onclick="showView('templates');return false;">Manage Templates</a>.</div>
+      <div class="field-row"><div class="field-label">Archetype Template</div>
+        <select id="createTemplateSelect" onchange="renderCreateTemplateDescription()">${options}</select>
+      </div>
+      <div class="callout" id="createTemplateDescription" style="margin-top:-8px;"></div>
+      <div class="field-row"><div class="field-label">New Product Name</div>
+        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
+      </div>
+      <div class="field-row"><div class="field-label">New Product Code</div>
+        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
+        <button class="btn" onclick="showView('overview')">Cancel</button>
+      </div>
+    ` : `
+      <div class="callout">No archetype templates exist yet. <a href="#" onclick="showView('templates');return false;">Create one in Manage Templates</a> first, or use "Start Blank" instead.</div>
+    `;
+  } else if(createPath === "existing"){
+    const options = all.map(p=>`<option value="${p.id}">${p.id} — ${p.name} (${p.category})</option>`).join("");
+    bodyHtml = `
+      <div class="callout">Full copy of a live product's actual content (objective, philosophy, allocation, risk text — everything), given a new ID. Use this when you're building a close variant of something that already exists, not a fresh archetype.</div>
+      <div class="field-row"><div class="field-label">Copy From</div>
+        <select id="createExistingSelect">${options}</select>
       </div>
       <div class="field-row"><div class="field-label">New Product Name</div>
         <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
@@ -927,23 +1077,219 @@ function renderCreateView(){
         <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
         <button class="btn" onclick="showView('overview')">Cancel</button>
       </div>
+    `;
+  }
+
+  main.innerHTML = `
+    <div class="topbar"><div><h1>New Product Note</h1><div class="topbar-sub">Choose how to start — blank, from an archetype template, or copied from an existing product</div></div></div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        ${tabBtn("blank", "Start Blank")}
+        ${tabBtn("template", "From Archetype Template")}
+        ${tabBtn("existing", "From Existing Product")}
+      </div>
     </div>
+    <div class="card">${bodyHtml}</div>
   `;
+  if(createPath === "template" && templates.length) renderCreateTemplateDescription();
+}
+
+function renderCreateTemplateDescription(){
+  const sel = document.getElementById("createTemplateSelect");
+  const descEl = document.getElementById("createTemplateDescription");
+  if(!sel || !descEl) return;
+  const t = getTemplate(sel.value);
+  descEl.textContent = t && t.description ? t.description : "";
 }
 
 async function handleCreateProduct(){
-  const templateId = document.getElementById("createTemplateSelect").value;
   const name = document.getElementById("createNameInput").value.trim();
   const code = document.getElementById("createCodeInput").value.trim();
   if(!name){ alert("Please enter a name for the new product."); return; }
   const btn = event && event.target;
   if(btn) { btn.disabled = true; btn.textContent = "Creating…"; }
   try {
-    const newId = await createProductFromTemplate(templateId, name, code || undefined);
+    let newId;
+    if(createPath === "blank"){
+      newId = await createBlankProduct(name, code || undefined);
+    } else if(createPath === "template"){
+      const templateId = document.getElementById("createTemplateSelect").value;
+      newId = await createProductFromTemplate(templateId, name, code || undefined);
+    } else if(createPath === "existing"){
+      const sourceId = document.getElementById("createExistingSelect").value;
+      newId = await createProductFromExisting(sourceId, name, code || undefined);
+    }
     showEdit(newId);
+  } catch(err){
+    showGlobalError("Failed to create product: " + err.message);
   } finally {
     if(btn) { btn.disabled = false; btn.textContent = "Create & Open for Editing"; }
   }
+}
+
+// ---------- MANAGE TEMPLATES ----------
+let editingTemplateId = null; // null = not editing; "__new__" = creating new
+
+function renderTemplatesView(){
+  editingTemplateId = null;
+  renderTemplatesViewBody();
+}
+
+function renderTemplatesViewBody(){
+  const main = document.getElementById("main");
+  const templates = getAllTemplates();
+
+  if(editingTemplateId !== null){
+    renderTemplateEditor();
+    return;
+  }
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div><h1>Manage Templates</h1><div class="topbar-sub">Archetype starting structures used by "New Product → From Archetype Template." Kept separate from live products.</div></div>
+      <div class="toolbar"><button class="btn primary" onclick="startNewTemplate()">+ New Template</button></div>
+    </div>
+    <div class="callout">Templates hold placeholder structure only — never real client content. Editing or deleting a template has no effect on any already-created product; the clone happens once, at creation time.</div>
+    <div class="grid-overview" id="templatesGrid"></div>
+  `;
+  const grid = document.getElementById("templatesGrid");
+  if(!templates.length){
+    grid.innerHTML = `<div class="callout">No templates yet. Click "+ New Template" to create the first one.</div>`;
+    return;
+  }
+  templates.forEach(t=>{
+    const card = document.createElement("div");
+    card.className = "p-card";
+    card.innerHTML = `
+      <span class="tag">${t.archetype}</span>
+      <h3>${t.name}</h3>
+      <p>${(t.description||"").slice(0,160)}</p>
+      <div class="meta" style="margin-top:12px;">
+        <button class="btn" onclick="editTemplate('${t.id}')">Edit</button>
+        <button class="btn" onclick="handleDeleteTemplate('${t.id}')">Delete</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function startNewTemplate(){
+  editingTemplateId = "__new__";
+  renderTemplateEditor();
+}
+function editTemplate(id){
+  editingTemplateId = id;
+  renderTemplateEditor();
+}
+
+function renderTemplateEditor(){
+  const main = document.getElementById("main");
+  const isNew = editingTemplateId === "__new__";
+  const t = isNew ? null : getTemplate(editingTemplateId);
+  if(!isNew && !t){
+    showGlobalError("Template not found — it may have been deleted in another tab.");
+    editingTemplateId = null;
+    renderTemplatesViewBody();
+    return;
+  }
+  main.innerHTML = `
+    <div class="topbar"><div><h1>${isNew ? "New Template" : "Edit Template — " + t.name}</h1><div class="topbar-sub">Structure only — no real client content</div></div></div>
+    <div class="card">
+      <div class="field-row"><div class="field-label">Template Name</div>
+        <input type="text" id="tplNameInput" value="${isNew ? '' : (t.name||'').replace(/"/g,'&quot;')}" placeholder="e.g. Single-Sleeve Equity">
+      </div>
+      <div class="field-row"><div class="field-label">Description</div>
+        <textarea id="tplDescInput" rows="2" placeholder="Shown to users choosing this template on the Create screen">${isNew ? '' : (t.description||'')}</textarea>
+      </div>
+      <div class="field-row"><div class="field-label">Archetype Tag</div>
+        <select id="tplArchetypeInput">
+          ${["single-sleeve","strategic-allocation","risk-variant","goal-based","other"].map(a=>
+            `<option value="${a}" ${!isNew && t.archetype===a ? 'selected':''}>${a}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field-row"><div class="field-label">Structure (JSON)</div>
+        <textarea id="tplDataInput" rows="18" style="font-family:monospace;font-size:12.5px;" placeholder='{"code":"","name":"","...":"..."}'>${isNew ? blankTemplateDataPlaceholder() : JSON.stringify(t.data, null, 2)}</textarea>
+        <div class="topbar-sub" style="margin-top:6px;">Same field shape as a product's data (e.g. <code>styleSleeves</code>, <code>variants</code>, <code>portfolioConstructionRules</code>). Must be valid JSON.</div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn primary" onclick="handleSaveTemplate()">Save Template</button>
+        <button class="btn" onclick="editingTemplateId=null;renderTemplatesViewBody();">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function blankTemplateDataPlaceholder(){
+  return JSON.stringify({
+    code: "NEW-CODE", name: "New Template Product", shortName: "Short name",
+    category: "Discretionary — Single Asset Class (Equity)", assetClasses: [],
+    objective: "", philosophy: "", benchmark: "", rebalanceFrequency: "",
+    riskProfile: "", suitability: "", minInvestment: "", fees: "", taxNote: "",
+    keyRisks: []
+  }, null, 2);
+}
+
+async function handleSaveTemplate(){
+  const name = document.getElementById("tplNameInput").value.trim();
+  const description = document.getElementById("tplDescInput").value.trim();
+  const archetype = document.getElementById("tplArchetypeInput").value;
+  const rawData = document.getElementById("tplDataInput").value;
+  if(!name){ alert("Please enter a template name."); return; }
+  let parsedData;
+  try {
+    parsedData = JSON.parse(rawData);
+  } catch(err){
+    alert("Structure field is not valid JSON: " + err.message);
+    return;
+  }
+  const isNew = editingTemplateId === "__new__";
+  const id = isNew ? nextTemplateId() : editingTemplateId;
+  const btn = event && event.target;
+  if(btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const uid = userData && userData.user ? userData.user.id : null;
+    if(isNew){
+      const { error } = await sb.from('templates').insert({
+        id, name, description: description || null, archetype, data: parsedData, updated_by: uid
+      });
+      if(error) throw error;
+    } else {
+      const { error } = await sb.from('templates')
+        .update({ name, description: description || null, archetype, data: parsedData, updated_by: uid })
+        .eq('id', id);
+      if(error) throw error;
+    }
+    state.templates[id] = { id, name, description, archetype, data: parsedData };
+    editingTemplateId = null;
+    dismissGlobalError();
+    renderTemplatesViewBody();
+  } catch(err){
+    showGlobalError("Failed to save template: " + err.message);
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = "Save Template"; }
+  }
+}
+
+async function handleDeleteTemplate(id){
+  const t = getTemplate(id);
+  if(!t) return;
+  if(!confirm(`Delete template "${t.name}"? This does not affect any product already created from it.`)) return;
+  try {
+    const { error } = await sb.from('templates').delete().eq('id', id);
+    if(error) throw error;
+    delete state.templates[id];
+    renderTemplatesViewBody();
+  } catch(err){
+    showGlobalError("Failed to delete template: " + err.message);
+  }
+}
+
+function nextTemplateId(){
+  const existing = Object.keys(state.templates);
+  let n = 1;
+  while (existing.includes("T" + n)) n++;
+  return "T" + n;
 }
 
 // ---------- ARCHIVE VIEW ----------
@@ -1011,6 +1357,8 @@ function renderProduct(id){
         <button class="btn" onclick="showHistory('${p.id}')">History &amp; Diff</button>
         <button class="btn" onclick="exportDocx('${p.id}')">→ Word</button>
         <button class="btn" onclick="exportXlsx('${p.id}')">→ Excel</button>
+        <button class="btn" onclick="exportPdf('${p.id}')">→ PDF (Full Note)</button>
+        <button class="btn" onclick="exportClientSummaryPdf('${p.id}')">→ PDF (Client Summary)</button>
         <button class="btn" onclick="emailNote('${p.id}')">✉ Email This Note</button>
         ${entry.archived ? `<button class="btn" onclick="handleUnarchive('${p.id}')">Restore from Archive</button>` : `<button class="btn danger" onclick="handleArchive('${p.id}')">Archive</button>`}
       </div>
@@ -1920,6 +2268,8 @@ function checkExportLibs(need){
   if(need.includes("xlsx") && typeof XLSX === "undefined") missing.push("SheetJS (XLSX) — used for Excel export");
   if(need.includes("docx") && typeof docx === "undefined") missing.push("docx.js — used for Word export");
   if(need.includes("saveAs") && typeof saveAs === "undefined") missing.push("FileSaver.js — used to trigger the file download");
+  if(need.includes("jspdf") && (typeof window.jspdf === "undefined" || typeof window.jspdf.jsPDF === "undefined")) missing.push("jsPDF — used for PDF export");
+  if(need.includes("autotable") && typeof window.jspdf !== "undefined" && typeof window.jspdf.jsPDF !== "undefined" && typeof window.jspdf.jsPDF.API.autoTable === "undefined") missing.push("jsPDF-AutoTable — used to render tables in PDF export");
   if(missing.length){
     alert(
       "Export couldn't run — a required library didn't load from the CDN:\n\n" +
@@ -2048,6 +2398,273 @@ function exportAllXlsx(){
   } catch(err){
     console.error("exportAllXlsx failed", err);
     alert("Excel export failed unexpectedly: " + (err && err.message ? err.message : err) + "\n\nCheck the browser console for details.");
+  }
+}
+
+// ============================================================================
+// PDF EXPORT — Vriksha-branded document theme (light, print-appropriate)
+// ============================================================================
+// Shared color/typography constants translating the app's dark web palette
+// into a light document theme: white background (correct for print/email),
+// forest green for headings, moss for rules/accents, gold as the highlight
+// accent — same brand identity, inverted for a printed page rather than a
+// literal dark-mode copy.
+const PDF_THEME = {
+  forest: [15, 26, 18],      // #0f1a12 — headings
+  moss:   [45, 74, 50],      // #2d4a32 — section rules, sub-headings
+  sage:   [90, 110, 94],     // darkened from #7a9e7e for legibility on white
+  gold:   [150, 122, 45],    // darkened from #c4a84f for legibility on white
+  ink:    [30, 38, 32],      // body text — near-black, slightly warm
+  faint:  [120, 130, 122],   // meta text, footers
+  pageWidth: 210,            // A4 mm
+  margin: 18
+};
+
+function pdfNewDoc(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  return doc;
+}
+
+function pdfHeader(doc, title, subtitle){
+  const m = PDF_THEME.margin;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...PDF_THEME.gold);
+  doc.text("VRIKSHA", m, 14);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...PDF_THEME.sage);
+  doc.text("PRODUCT NOTE STUDIO", m, 18);
+  doc.setDrawColor(...PDF_THEME.moss);
+  doc.setLineWidth(0.4);
+  doc.line(m, 21, PDF_THEME.pageWidth - m, 21);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.setTextColor(...PDF_THEME.forest);
+  const titleLines = doc.splitTextToSize(title, PDF_THEME.pageWidth - 2*m);
+  doc.text(titleLines, m, 30);
+  let y = 30 + titleLines.length * 6.5;
+  if(subtitle){
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...PDF_THEME.sage);
+    doc.text(subtitle, m, y);
+    y += 6;
+  }
+  return y + 2;
+}
+
+function pdfFooter(doc, footnote){
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    const m = PDF_THEME.margin;
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(...PDF_THEME.moss);
+    doc.setLineWidth(0.2);
+    doc.line(m, pageH-14, PDF_THEME.pageWidth-m, pageH-14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...PDF_THEME.faint);
+    if(footnote){
+      const lines = doc.splitTextToSize(footnote, PDF_THEME.pageWidth - 2*m - 20);
+      doc.text(lines, m, pageH-10);
+    }
+    doc.text(`${i} / ${pageCount}`, PDF_THEME.pageWidth-m, pageH-10, {align:"right"});
+  }
+}
+
+function pdfSectionHeading(doc, text, y){
+  const m = PDF_THEME.margin;
+  if(y > 260){ doc.addPage(); y = 24; }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11.5);
+  doc.setTextColor(...PDF_THEME.forest);
+  doc.text(text.toUpperCase(), m, y);
+  doc.setDrawColor(...PDF_THEME.gold);
+  doc.setLineWidth(0.6);
+  doc.line(m, y+1.5, m+14, y+1.5);
+  return y + 7;
+}
+
+function pdfBody(doc, text, y, opts){
+  opts = opts || {};
+  const m = PDF_THEME.margin;
+  const size = opts.size || 9.5;
+  doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+  doc.setFontSize(size);
+  doc.setTextColor(...(opts.color || PDF_THEME.ink));
+  const lines = doc.splitTextToSize(text || "—", PDF_THEME.pageWidth - 2*m);
+  lines.forEach(line=>{
+    if(y > 275){ doc.addPage(); y = 24; }
+    doc.text(line, m, y);
+    y += size*0.42 + 2.2;
+  });
+  return y + 2;
+}
+
+function pdfKv(doc, k, v, y){
+  const m = PDF_THEME.margin;
+  if(y > 272){ doc.addPage(); y = 24; }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...PDF_THEME.moss);
+  doc.text(k + ":", m, y);
+  const kw = doc.getTextWidth(k + ":  ");
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...PDF_THEME.ink);
+  const lines = doc.splitTextToSize(String(v==null?"—":v), PDF_THEME.pageWidth - 2*m - kw);
+  doc.text(lines, m + kw, y);
+  return y + Math.max(lines.length,1)*4.3 + 2.5;
+}
+
+function pdfBullets(doc, items, y){
+  const m = PDF_THEME.margin;
+  (items||[]).forEach(item=>{
+    if(y > 272){ doc.addPage(); y = 24; }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...PDF_THEME.gold);
+    doc.text("—", m, y);
+    doc.setTextColor(...PDF_THEME.ink);
+    const lines = doc.splitTextToSize(item, PDF_THEME.pageWidth - 2*m - 6);
+    doc.text(lines, m+5, y);
+    y += lines.length*4.3 + 2;
+  });
+  return y + 2;
+}
+
+function pdfTable(doc, head, rows, y){
+  doc.autoTable({
+    startY: y,
+    head: [head],
+    body: rows,
+    margin: {left: PDF_THEME.margin, right: PDF_THEME.margin},
+    styles: {font:"helvetica", fontSize:8.3, textColor:PDF_THEME.ink, cellPadding:2.2, lineColor:[220,225,220], lineWidth:0.2},
+    headStyles: {fillColor:PDF_THEME.moss, textColor:[255,255,255], fontStyle:"bold"},
+    alternateRowStyles: {fillColor:[245,248,245]}
+  });
+  return doc.lastAutoTable.finalY + 6;
+}
+
+// ---------- Full-note PDF (content mirrors exportDocx exactly) ----------
+function exportPdf(pid){
+  if(!checkExportLibs(["jspdf","autotable","saveAs"])) return;
+  try{
+    const p = getProduct(pid);
+    const entry = getEntry(pid);
+    const doc = pdfNewDoc();
+    let y = pdfHeader(doc, p.name, `${p.category}  ·  Code: ${p.code}  ·  Status: ${entry.status.toUpperCase()}  ·  v${entry.versions.length}`);
+
+    y = pdfSectionHeading(doc, "Key Facts", y);
+    y = pdfKv(doc, "Risk Profile", p.riskProfile, y);
+    y = pdfKv(doc, "Asset Classes", (p.assetClasses||[]).join("; "), y);
+    y = pdfKv(doc, "Benchmark", p.benchmark, y);
+    y = pdfKv(doc, "Rebalance Frequency", p.rebalanceFrequency, y);
+    y = pdfKv(doc, "Minimum Investment", p.minInvestment||"—", y);
+    y = pdfKv(doc, "Fees", p.fees||"—", y);
+
+    y = pdfSectionHeading(doc, "Investment Objective", y);
+    y = pdfBody(doc, p.objective, y);
+
+    y = pdfSectionHeading(doc, "Philosophy & Methodology", y);
+    y = pdfBody(doc, p.philosophy || p.selectionMethodology || "", y);
+    if(p.portfolioConstruction) y = pdfKv(doc, "Portfolio Construction", p.portfolioConstruction, y);
+    if(p.portfolioConstructionNote) y = pdfBody(doc, p.portfolioConstructionNote, y);
+    if(p.portfolioConstructionRules){
+      const r = p.portfolioConstructionRules;
+      y = pdfKv(doc, "Stock Count Range", r.stockCountRange||"—", y);
+      y = pdfKv(doc, "Caps & Position Sizing", formatCapsSentence(r), y);
+      y = pdfKv(doc, "Cash Buffer", r.cashBuffer||"—", y);
+    }
+
+    if(p.styleSleeves){
+      y = pdfSectionHeading(doc, "Style Sleeves", y);
+      y = pdfTable(doc, ["Sleeve","Weight Range","Universe"], p.styleSleeves.map(s=>[s.name, s.weightRange||"—", s.universe||"—"]), y);
+    }
+
+    if(p.strategicAllocationRanges){
+      y = pdfSectionHeading(doc, "Strategic Allocation Ranges", y);
+      y = pdfTable(doc, ["Sleeve","Target Range"], p.strategicAllocationRanges.map(a=>[a.sleeve, a.range]), y);
+    }
+
+    if(p.variants){
+      y = pdfSectionHeading(doc, "Risk-Profile Variants", y);
+      p.variants.forEach(v=>{
+        if(y > 260){ doc.addPage(); y = 24; }
+        doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...PDF_THEME.moss);
+        doc.text(v.profile, PDF_THEME.margin, y); y += 5.5;
+        if(v.targetInvestor) y = pdfBody(doc, v.targetInvestor, y, {size:9});
+        if(v.factorMix){
+          y = pdfKv(doc, "Factor Mix", v.factorMix, y);
+          y = pdfKv(doc, "Universe", v.universe, y);
+          y = pdfKv(doc, "Stock Count", v.stockCount, y);
+        }
+        if(v.allocation){
+          y = pdfTable(doc, ["Sleeve","Target Range"], v.allocation.map(a=>[a.sleeve, a.range]), y);
+          if(v.expectedEquityLikeExposure) y = pdfKv(doc, "Equity-like Exposure", v.expectedEquityLikeExposure, y);
+        }
+        y += 2;
+      });
+    }
+
+    if(p.goalFramework){
+      y = pdfSectionHeading(doc, "Life Goal Framework (Glide Path)", y);
+      p.goalFramework.forEach(g=>{
+        if(y > 265){ doc.addPage(); y = 24; }
+        doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(...PDF_THEME.moss);
+        doc.text(`${g.goal} — ${g.horizonBand}`, PDF_THEME.margin, y); y += 5;
+        y = pdfBody(doc, g.glidePath, y, {size:9});
+      });
+    }
+
+    y = pdfSectionHeading(doc, "Suitability", y);
+    y = pdfBody(doc, p.suitability, y);
+
+    y = pdfSectionHeading(doc, "Key Risks", y);
+    y = pdfBullets(doc, p.keyRisks, y);
+
+    y = pdfSectionHeading(doc, "Tax & Fees", y);
+    y = pdfKv(doc, "Fees", p.fees||"—", y);
+    y = pdfKv(doc, "Tax Treatment", p.taxNote || "To be detailed in a future revision.", y);
+
+    pdfFooter(doc, `Product code ${p.code} · Status: ${entry.status.toUpperCase()} · Internal / product-development document. Not investor-facing until reviewed for SEBI Research Analyst / smallcase compliance requirements, final fee structure, and tax disclosures.`);
+    doc.save(`${p.code}_${p.id}_ProductNote.pdf`);
+  } catch(err){
+    console.error("exportPdf failed", err);
+    alert("PDF export failed unexpectedly: " + (err && err.message ? err.message : err) + "\n\nCheck the browser console for details.");
+  }
+}
+
+// ---------- Short-form client summary PDF (fixed field set, 1-2 pages) ----------
+function exportClientSummaryPdf(pid){
+  if(!checkExportLibs(["jspdf","autotable","saveAs"])) return;
+  try{
+    const p = getProduct(pid);
+    const doc = pdfNewDoc();
+    let y = pdfHeader(doc, p.shortName || p.name, p.category);
+
+    y = pdfSectionHeading(doc, "Objective", y);
+    y = pdfBody(doc, p.objective, y);
+
+    y = pdfSectionHeading(doc, "Key Facts", y);
+    y = pdfKv(doc, "Risk Profile", p.riskProfile, y);
+    y = pdfKv(doc, "Benchmark", p.benchmark, y);
+    y = pdfKv(doc, "Minimum Investment", p.minInvestment||"—", y);
+
+    y = pdfSectionHeading(doc, "Suitability", y);
+    y = pdfBody(doc, p.suitability, y);
+
+    y = pdfSectionHeading(doc, "Key Risks", y);
+    y = pdfBullets(doc, (p.keyRisks||[]).slice(0,5), y);
+
+    pdfFooter(doc, "Summary overview for discussion purposes — not a complete product note. Full terms, fees, and risk disclosures available on request.");
+    doc.save(`${p.code}_${p.id}_ClientSummary.pdf`);
+  } catch(err){
+    console.error("exportClientSummaryPdf failed", err);
+    alert("Client summary PDF export failed unexpectedly: " + (err && err.message ? err.message : err) + "\n\nCheck the browser console for details.");
   }
 }
 
@@ -2239,7 +2856,7 @@ if (supabaseInitError) {
       } else {
         currentUser = null;
         appBooted = false;
-        state = { products: {}, lastSaved: null };
+        state = { products: {}, templates: {}, lastSaved: null };
         showLoginScreen();
       }
     });
@@ -2262,4 +2879,4 @@ if (supabaseInitError) {
 }
 </script>
 </body>
-</html>         
+</html>
