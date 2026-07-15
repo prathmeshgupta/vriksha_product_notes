@@ -1047,8 +1047,7 @@ function renderProduct(id){
   if(p.portfolioConstructionRules){
     html += `<h2 class="section">Construction Rules</h2><div class="card">`;
     html += kv("Stock Count Range", p.portfolioConstructionRules.stockCountRange || "—");
-    html += kv("Single-Stock Cap", p.portfolioConstructionRules.singleStockCap || "—");
-    html += kv("Sector Cap", p.portfolioConstructionRules.sectorCap || "—");
+    html += kv("Caps &amp; Position Sizing", formatCapsSentence(p.portfolioConstructionRules));
     html += kv("Cash Buffer", p.portfolioConstructionRules.cashBuffer || "—");
     html += `</div>`;
   }
@@ -1308,6 +1307,30 @@ function weightSumBadge(rows, containerId){
   return `<span class="weight-sum-badge ${ok?'weight-sum-ok':'weight-sum-bad'}">Range sums: low ${lo.toFixed(0)}% – high ${hi.toFixed(0)}% ${ok? '(plausible)':'(check — should bracket 100%)'}</span>`;
 }
 
+function formatCapsSentence(rules){
+  // Single source of truth for the human-readable caps sentence shown on the note
+  // page and in both exports. Reads only the numeric fields -- there is no separate
+  // free-text cap field anymore, so this can never drift from what compliance checks
+  // against. Returns "—" if nothing numeric has been set yet.
+  if(!rules) return "—";
+  const parts = [];
+  if(rules.positionMinPct!=null || rules.positionMaxPct!=null){
+    const lo = rules.positionMinPct!=null ? rules.positionMinPct+"%" : "no minimum";
+    const hi = rules.positionMaxPct!=null ? rules.positionMaxPct+"%" : "no maximum";
+    const basis = rules.positionBasis==='sleeve' ? "of sleeve" : "of portfolio";
+    parts.push(`Position size ${lo}–${hi} ${basis}`);
+  }
+  if(rules.sectorCapMaxPct!=null){
+    parts.push(`Sector cap ${rules.sectorCapMaxPct}%`);
+  }
+  if(rules.sleeveMinPct!=null || rules.sleeveMaxPct!=null){
+    const lo = rules.sleeveMinPct!=null ? rules.sleeveMinPct+"%" : "—";
+    const hi = rules.sleeveMaxPct!=null ? rules.sleeveMaxPct+"%" : "—";
+    parts.push(`Equity exposure ${lo}–${hi}`);
+  }
+  return parts.length ? parts.join("; ") : "—";
+}
+
 function clampPct(value){
   // Parses free user input into a number in [0,100] or null if not a valid number.
   // Used for every new structured cap/range field so bad input can never silently
@@ -1318,32 +1341,38 @@ function clampPct(value){
   return Math.max(0, Math.min(100, n));
 }
 
-function capFieldsHtml(minVal, maxVal, capVal, capBasis, onMinCall, onMaxCall, onCapCall, onBasisCall){
-  // Shared row of 4 numeric-only inputs (sleeve min%, sleeve max%, position cap %, cap basis)
-  // reused across styleSleeves, strategicAllocationRanges, variant allocations, and the
-  // single-sleeve construction-rules block. Kept as one function so all four editors stay
-  // visually and behaviorally identical rather than drifting apart over time.
+function capFieldsHtml(sleeveMinVal, sleeveMaxVal, posMinVal, posMaxVal, posBasis, onSleeveMinCall, onSleeveMaxCall, onPosMinCall, onPosMaxCall, onPosBasisCall){
+  // Shared row of numeric-only inputs: sleeve allocation range (min/max %) plus a true
+  // position-size range (min/max %, e.g. "a holding must be at least 2% to be worth
+  // including, and no more than 10%"). Reused across styleSleeves, strategicAllocationRanges,
+  // variant allocations, and the single-sleeve construction-rules block, so all four editors
+  // stay identical rather than drifting apart. All inputs are type="number" with min/max/step
+  // -- there is no free-text path into any of these fields.
   // on*Call are plain strings holding a full JS call expression missing only the closing
   // `,this.value)` -- e.g. "updateSleeveNumericField('P1',0,'sleeveMinPct'" -- so this
   // function only ever does simple string concatenation, never regex post-processing.
-  const mv = (minVal===null||minVal===undefined) ? '' : minVal;
-  const xv = (maxVal===null||maxVal===undefined) ? '' : maxVal;
-  const cv = (capVal===null||capVal===undefined) ? '' : capVal;
+  const smv = (sleeveMinVal===null||sleeveMinVal===undefined) ? '' : sleeveMinVal;
+  const sxv = (sleeveMaxVal===null||sleeveMaxVal===undefined) ? '' : sleeveMaxVal;
+  const pmv = (posMinVal===null||posMinVal===undefined) ? '' : posMinVal;
+  const pxv = (posMaxVal===null||posMaxVal===undefined) ? '' : posMaxVal;
   return `
     <div class="cap-fields-row" style="display:flex; gap:8px; align-items:center; margin:6px 0 10px; flex-wrap:wrap;">
       <label style="font-size:.68rem; color:var(--text-faint);">Sleeve min %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${mv}" onchange="${onMinCall},this.value)" placeholder="—">
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${smv}" onchange="${onSleeveMinCall},this.value)" placeholder="—">
       </label>
       <label style="font-size:.68rem; color:var(--text-faint);">Sleeve max %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${xv}" onchange="${onMaxCall},this.value)" placeholder="—">
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${sxv}" onchange="${onSleeveMaxCall},this.value)" placeholder="—">
       </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Position cap %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${cv}" onchange="${onCapCall},this.value)" placeholder="—">
+      <label style="font-size:.68rem; color:var(--text-faint);">Position min %
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${pmv}" onchange="${onPosMinCall},this.value)" placeholder="—">
       </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Cap basis
-        <select class="input-sm" onchange="${onBasisCall},this.value)">
-          <option value="portfolio" ${capBasis==='portfolio'?'selected':''}>% of portfolio</option>
-          <option value="sleeve" ${capBasis==='sleeve'?'selected':''}>% of sleeve</option>
+      <label style="font-size:.68rem; color:var(--text-faint);">Position max %
+        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${pxv}" onchange="${onPosMaxCall},this.value)" placeholder="—">
+      </label>
+      <label style="font-size:.68rem; color:var(--text-faint);">Basis
+        <select class="input-sm" onchange="${onPosBasisCall},this.value)">
+          <option value="portfolio" ${posBasis==='portfolio'?'selected':''}>% of portfolio</option>
+          <option value="sleeve" ${posBasis==='sleeve'?'selected':''}>% of sleeve</option>
         </select>
       </label>
     </div>
@@ -1390,23 +1419,26 @@ function renderEdit(id){
     </div>
   `;
 
-  // Construction rules (caps) — structured, applies to single-asset stock products
-  html += `<h2 class="section">Construction Rules — Caps &amp; Limits <span class="s-label-inline">structured</span></h2><div class="card">`;
-  const rules = p.portfolioConstructionRules || { stockCountRange:"", singleStockCap:"", sectorCap:"", cashBuffer:"" };
+  // Construction rules (caps) — fully numeric, no free-text cap fields. The exported
+  // note's cap sentence (see formatCapsSentence()) is generated from these numbers,
+  // so there is exactly one place a cap is ever set — no drift between what's typed
+  // here and what the document/compliance engine sees.
+  html += `<h2 class="section">Construction Rules — Caps &amp; Limits <span class="s-label-inline">structured, numeric only</span></h2><div class="card">`;
+  const rules = p.portfolioConstructionRules || { stockCountRange:"", cashBuffer:"" };
   html += `
     <div class="field-row"><div class="field-label">Stock Count Range</div><input type="text" class="input-sm" value="${escAttr(rules.stockCountRange)}" onchange="updateConstructionRule('${id}','stockCountRange',this.value)" placeholder="e.g. 15-25"></div>
-    <div class="field-row"><div class="field-label">Single-Stock Cap (%) <span class="s-label-inline">legacy text</span></div><input type="text" class="input-sm" value="${escAttr(rules.singleStockCap)}" onchange="updateConstructionRule('${id}','singleStockCap',this.value)" placeholder="e.g. 10%"></div>
-    <div class="field-row"><div class="field-label">Sector Cap (%) <span class="s-label-inline">legacy text</span></div><input type="text" class="input-sm" value="${escAttr(rules.sectorCap)}" onchange="updateConstructionRule('${id}','sectorCap',this.value)" placeholder="e.g. 30%"></div>
     <div class="field-row"><div class="field-label">Cash Buffer (%)</div><input type="text" class="input-sm" value="${escAttr(rules.cashBuffer)}" onchange="updateConstructionRule('${id}','cashBuffer',this.value)" placeholder="e.g. 0-5%"></div>
+    <div class="field-row"><div class="field-label">Sector Cap — Max % <span class="s-label-inline">numeric</span></div><input type="number" min="0" max="100" step="0.1" class="input-sm" value="${rules.sectorCapMaxPct===null||rules.sectorCapMaxPct===undefined?'':rules.sectorCapMaxPct}" onchange="updateConstructionRuleNumeric('${id}','sectorCapMaxPct',this.value)" placeholder="e.g. 30"></div>
   `;
-  html += `<div class="field-label" style="margin-top:14px; margin-bottom:6px;">Compliance-Engine Numeric Fields <span class="s-label-inline">structured</span></div>`;
-  html += capFieldsHtml(rules.sleeveMinPct, rules.sleeveMaxPct, rules.positionCapPct, rules.positionCapBasis,
+  html += `<div class="field-label" style="margin-top:14px; margin-bottom:6px;">Sleeve Allocation &amp; Position-Size Range <span class="s-label-inline">structured, numeric only</span></div>`;
+  html += capFieldsHtml(rules.sleeveMinPct, rules.sleeveMaxPct, rules.positionMinPct, rules.positionMaxPct, rules.positionBasis,
     `updateConstructionRuleNumeric('${id}','sleeveMinPct'`,
     `updateConstructionRuleNumeric('${id}','sleeveMaxPct'`,
-    `updateConstructionRuleNumeric('${id}','positionCapPct'`,
-    `updateConstructionRule('${id}','positionCapBasis'`
+    `updateConstructionRuleNumeric('${id}','positionMinPct'`,
+    `updateConstructionRuleNumeric('${id}','positionMaxPct'`,
+    `updateConstructionRule('${id}','positionBasis'`
   );
-  html += `<div class="callout">The "Single-Stock Cap"/"Sector Cap" text fields above are the original note prose and stay editable for the document itself. The numeric fields just above are what the compliance engine actually reads — for a single-sleeve product like this one, "Sleeve min/max %" describes the whole portfolio's equity exposure band (often 100% min/max if fully invested) and "Position cap %" is the actual per-stock limit. Keep both in sync manually when a cap changes; they are not auto-derived from each other.</div>`;
+  html += `<div class="callout">These numbers are the single source of truth — the exported note's caps sentence and the compliance engine both read directly from these fields, so there's nothing to keep in sync manually. For a single-sleeve product like this one, "Sleeve min/max %" describes the whole portfolio's equity exposure band (often 100% min/max if fully invested); "Position min/max %" is the per-holding size range — a stock must be at least the minimum to be worth including, and no more than the maximum.</div>`;
   html += `</div>`;
 
   // Style sleeves editor (Product 1-style)
@@ -1422,11 +1454,12 @@ function renderEdit(id){
           <input type="text" value="${escAttr(s.indicativeNames||'')}" onchange="updateSleeveField('${id}',${i},'indicativeNames',this.value)" placeholder="Indicative names">
           <button class="row-remove" onclick="removeSleeve('${id}',${i})">×</button>
         </div>
-        ${capFieldsHtml(s.sleeveMinPct, s.sleeveMaxPct, s.positionCapPct, s.positionCapBasis,
+        ${capFieldsHtml(s.sleeveMinPct, s.sleeveMaxPct, s.positionMinPct, s.positionMaxPct, s.positionBasis,
           `updateSleeveNumericField('${id}',${i},'sleeveMinPct'`,
           `updateSleeveNumericField('${id}',${i},'sleeveMaxPct'`,
-          `updateSleeveNumericField('${id}',${i},'positionCapPct'`,
-          `updateSleeveField('${id}',${i},'positionCapBasis'`
+          `updateSleeveNumericField('${id}',${i},'positionMinPct'`,
+          `updateSleeveNumericField('${id}',${i},'positionMaxPct'`,
+          `updateSleeveField('${id}',${i},'positionBasis'`
         )}
         <textarea rows="2" style="margin-bottom:14px;" onchange="updateSleeveField('${id}',${i},'criteria',this.value)" placeholder="Selection criteria">${escText(s.criteria||'')}</textarea>
       `;
@@ -1448,11 +1481,12 @@ function renderEdit(id){
           <div></div>
           <button class="row-remove" onclick="removeAllocRow('${id}','strategicAllocationRanges',${i})">×</button>
         </div>
-        ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionCapPct, a.positionCapBasis,
+        ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionMinPct, a.positionMaxPct, a.positionBasis,
           `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMinPct'`,
           `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMaxPct'`,
-          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionCapPct'`,
-          `updateAllocField('${id}','strategicAllocationRanges',${i},'positionCapBasis'`
+          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionMinPct'`,
+          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionMaxPct'`,
+          `updateAllocField('${id}','strategicAllocationRanges',${i},'positionBasis'`
         )}
       `;
     });
@@ -1485,11 +1519,12 @@ function renderEdit(id){
               <div></div>
               <button class="row-remove" onclick="removeVariantAllocRow('${id}',${vi},${ai})">×</button>
             </div>
-            ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionCapPct, a.positionCapBasis,
+            ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionMinPct, a.positionMaxPct, a.positionBasis,
               `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMinPct'`,
               `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMaxPct'`,
-              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionCapPct'`,
-              `updateVariantAllocField('${id}',${vi},${ai},'positionCapBasis'`
+              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionMinPct'`,
+              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionMaxPct'`,
+              `updateVariantAllocField('${id}',${vi},${ai},'positionBasis'`
             )}
           `;
         });
@@ -1921,8 +1956,7 @@ function productToRows(p, entry){
   if(p.portfolioConstructionRules){
     const r = p.portfolioConstructionRules;
     rows.push(["Stock Count Range", r.stockCountRange||""]);
-    rows.push(["Single-Stock Cap", r.singleStockCap||""]);
-    rows.push(["Sector Cap", r.sectorCap||""]);
+    rows.push(["Caps & Position Sizing", formatCapsSentence(r)]);
     rows.push(["Cash Buffer", r.cashBuffer||""]);
   }
   return rows;
@@ -2062,8 +2096,7 @@ function exportDocx(pid){
   if(p.portfolioConstructionRules){
     const r = p.portfolioConstructionRules;
     children.push(kvPara("Stock Count Range", r.stockCountRange||"—"));
-    children.push(kvPara("Single-Stock Cap", r.singleStockCap||"—"));
-    children.push(kvPara("Sector Cap", r.sectorCap||"—"));
+    children.push(kvPara("Caps & Position Sizing", formatCapsSentence(r)));
     children.push(kvPara("Cash Buffer", r.cashBuffer||"—"));
   }
 
@@ -2229,4 +2262,4 @@ if (supabaseInitError) {
 }
 </script>
 </body>
-</html>
+</html>         
