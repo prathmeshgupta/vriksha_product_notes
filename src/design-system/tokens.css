@@ -1,0 +1,54 @@
+/*
+  Design tokens — ported verbatim from the frozen app's :root block
+  (repo root index.html). Do not hand-tune these values; if the frozen
+  app's palette ever changes, re-copy from there, don't drift independently.
+  See rebuild/ARCHITECTURE.md §2 for the source reference.
+*/
+
+:root {
+  --forest:      #0f1a12;
+  --deep:        #0a1209;
+  --canopy:      #1a2e1d;
+  --moss:        #2d4a32;
+  --sage:        #7a9e7e;
+  --pale:        #c8d9c9;
+  --mist:        #e8f0e9;
+  --gold:        #c4a84f;
+  --gold-dim:    rgba(196, 168, 79, 0.35);
+  --text:        #dde8de;
+  --text-dim:    rgba(221, 232, 222, 0.55);
+  --text-faint:  rgba(221, 232, 222, 0.25);
+  --red:         #d97a6c;
+  --amber:       #d4b06a;
+  --green:       #8fb894;
+  --radius: 3px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--forest);
+  color: var(--text);
+  font-family: 'Lora', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--moss);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--deep);
+}

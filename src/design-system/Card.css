@@ -1,0 +1,70 @@
+/* Verbatim port of the frozen app's .p-card rules (repo root index.html). */
+
+.p-card {
+  cursor: pointer;
+  background: var(--canopy);
+  border: 1px solid var(--moss);
+  padding: 24px 22px;
+  position: relative;
+  transition: 0.2s;
+}
+
+.p-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 0;
+  background: var(--gold);
+  transition: height 0.3s;
+}
+
+.p-card:hover {
+  background: var(--moss);
+}
+.p-card:hover::before {
+  height: 100%;
+}
+
+.p-card .tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.p-card .tag.sys {
+  color: rgba(196, 168, 79, 0.55);
+}
+
+.p-card h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--mist);
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+
+.p-card p {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin: 0 0 14px;
+  line-height: 1.7;
+}
+
+/* Non-interactive variant (not clickable, e.g. used purely as a container) */
+.p-card.static {
+  cursor: default;
+}
+.p-card.static:hover {
+  background: var(--canopy);
+}
+.p-card.static:hover::before {
+  height: 0;
+}

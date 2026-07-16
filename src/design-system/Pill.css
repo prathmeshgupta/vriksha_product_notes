@@ -1,0 +1,14 @@
+/* Verbatim port of the frozen app's .pill rule (repo root index.html). */
+
+.pill {
+  display: inline-block;
+  background: var(--deep);
+  border: 1px solid var(--moss);
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  margin: 0 5px 5px 0;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}

@@ -1,0 +1,55 @@
+/* Verbatim port of the frozen app's field-row / input / select rules
+   (repo root index.html). Shared across TextField/NumberField/SelectField/
+   TextAreaField. */
+
+.field-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 10px 18px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.field-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--sage);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding-top: 9px;
+}
+
+input[type='text'],
+input[type='number'],
+textarea,
+select {
+  width: 100%;
+  background: var(--deep);
+  border: 1px solid var(--moss);
+  color: var(--text);
+  padding: 9px 11px;
+  border-radius: 2px;
+  font-family: 'Lora', serif;
+  font-size: 0.86rem;
+}
+
+input[type='number'] {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 70px;
+  line-height: 1.6;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.input-sm {
+  width: 90px;
+}

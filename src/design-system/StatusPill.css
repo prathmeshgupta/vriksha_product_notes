@@ -1,0 +1,34 @@
+/* Verbatim port of the frozen app's .status-pill rules (repo root index.html).
+   Only two visual states exist in the source CSS: .published (green) and
+   .draft (amber). The Compliance screens reuse this same two-color system
+   for Compliant/Non-Compliant rather than adding a third color -- see
+   rebuild/ARCHITECTURE.md §2. */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-pill.published {
+  background: rgba(143, 184, 148, 0.14);
+  color: var(--green);
+}
+
+.status-pill.draft {
+  background: rgba(212, 176, 106, 0.14);
+  color: var(--amber);
+}
+
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
