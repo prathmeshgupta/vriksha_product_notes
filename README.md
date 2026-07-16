@@ -2,6 +2,10 @@
 
 Internal tool for drafting, editing, versioning, and publishing product notes for Vriksha's discretionary and systematic portfolio products, ahead of launch on smallcase.
 
+**Status (2026-07-16): FROZEN.** This app is fully functional and stays live/in-use, but no new features will be added to it — all new development is happening in a separate rebuild. See `PROJECT_HISTORY.md` §6 for why, and `ROADMAP.md` for the rebuild's plan. If you're picking this project back up after time away, read `PROJECT_HISTORY.md` first — it's the full narrative record of what's been built and decided.
+
+**Known cleanup item**: there is a leftover test product (`PN10`, code/name "test") in the `products` table from Phase 1 verification — safe to delete via the app's Archive or directly in Supabase, just hasn't been done yet.
+
 ## Live app
 
 Once GitHub Pages is enabled on this repo (Settings → Pages → Deploy from branch → `main` / root), the app will be live at:
