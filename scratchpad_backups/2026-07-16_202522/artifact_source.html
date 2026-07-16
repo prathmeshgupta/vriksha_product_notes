@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vriksha Product Note Studio (Lite)</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #faf9f5;
+    --panel: #ffffff;
+    --border: #e4e0d4;
+    --ink: #2a2620;
+    --ink-dim: #6b6558;
+    --ink-faint: #a39c8c;
+    --forest: #2d4a32;
+    --gold: #9c7f2e;
+    --gold-bg: #f5eed9;
+    --green: #3f7a4d;
+    --amber: #b5852a;
+    --red: #b8483a;
+    --radius: 4px;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family: Georgia, 'Times New Roman', serif; font-size:14px; line-height:1.65;
+  }
+  .mono{ font-family:'Courier New', monospace; }
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{
+    width:260px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border);
+    padding:18px 14px; position:sticky; top:0; height:100vh; overflow-y:auto; overflow-x:hidden;
+    scrollbar-width: none; /* Firefox: hide by default */
+    scrollbar-gutter: stable;
+    transition: width .18s ease, padding .18s ease;
+  }
+  .sidebar::-webkit-scrollbar{ width:0px; }
+  .sidebar:hover::-webkit-scrollbar, .sidebar:focus-within::-webkit-scrollbar{ width:6px; }
+  .sidebar::-webkit-scrollbar-thumb{ background:var(--border); border-radius:5px; }
+  .sidebar::-webkit-scrollbar-track{ background:transparent; }
+  .sidebar:hover{ scrollbar-width: thin; }
+
+  /* ── SIDEBAR COLLAPSE ── */
+  .sidebar.collapsed{ width:36px; padding:18px 6px; }
+  .sidebar.collapsed .brand-sub, .sidebar.collapsed .search-box,
+  .sidebar.collapsed #navList, .sidebar.collapsed .nav-group-title,
+  .sidebar.collapsed .brand, .sidebar.collapsed .nav-item{ display:none !important; }
+  .sidebar-toggle{
+    display:flex; align-items:center; justify-content:center;
+    width:24px; height:24px; margin-bottom:12px; cursor:pointer; flex-shrink:0;
+    border:1px solid var(--border); border-radius:var(--radius); background:var(--paper);
+    color:var(--gold); font-size:.7rem;
+  }
+  .sidebar-toggle:hover{ border-color:var(--gold); }
+  .sidebar.collapsed .sidebar-toggle{ margin:0 auto; }
+  .sidebar.collapsed .sidebar-toggle{ margin-left:auto; margin-right:auto; }
+  .sidebar-top-row{ display:flex; align-items:center; justify-content:space-between; }
+  .sidebar.collapsed .sidebar-top-row{ flex-direction:column; }
+  .brand{ font-family: Georgia, serif; font-size:1.05rem; font-weight:700; letter-spacing:.03em; color:var(--forest); }
+  .brand-sub{ font-family:'Courier New', monospace; font-size:.65rem; color:var(--ink-faint); margin-bottom:16px; }
+  .search-box{ width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--paper); color:var(--ink); font-size:.78rem; margin-bottom:12px; }
+  .nav-group-title{ font-family:'Courier New', monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--gold); margin:14px 0 6px; }
+  .nav-item{ display:flex; justify-content:space-between; align-items:center; padding:7px 8px; border-radius:var(--radius); cursor:pointer; margin-bottom:2px; color:var(--ink-dim); font-size:.78rem; }
+  .nav-item:hover{ background:var(--gold-bg); color:var(--ink); }
+  .nav-item.active{ background:var(--gold-bg); color:var(--forest); border-left:2px solid var(--gold); padding-left:6px; font-weight:600; }
+  .nav-item .code{ font-family:'Courier New', monospace; font-size:.58rem; opacity:.7; }
+  .status-dot{ width:6px; height:6px; border-radius:50%; margin-left:6px; flex-shrink:0; }
+  .status-dot.published{ background:var(--green); }
+  .status-dot.draft{ background:var(--amber); }
+  .main{ flex:1; padding:26px 34px; max-width:1100px; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; gap:14px; flex-wrap:wrap; }
+  .topbar h1{ font-size:1.35rem; font-weight:700; color:var(--forest); margin-bottom:4px; }
+  .topbar-sub{ font-family:'Courier New', monospace; font-size:.68rem; color:var(--gold); }
+  .toolbar{ display:flex; gap:6px; flex-wrap:wrap; }
+  .btn{
+    background:var(--panel); border:1px solid var(--border); color:var(--ink-dim);
+    padding:7px 13px; border-radius:var(--radius); cursor:pointer; font-size:.72rem; font-family:'Courier New', monospace;
+    text-transform:uppercase; letter-spacing:.03em;
+  }
+  .btn:hover{ border-color:var(--gold); color:var(--forest); }
+  .btn.primary{ background:var(--forest); border-color:var(--forest); color:#fff; font-weight:600; }
+  .btn.primary:hover{ filter:brightness(1.1); color:#fff; }
+  .btn.danger{ border-color:var(--red); color:var(--red); }
+  .btn.small{ padding:5px 10px; font-size:.62rem; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:14px; }
+  h2.section{ font-size:.86rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--forest); margin:24px 0 10px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+  .callout{ background:var(--gold-bg); border-left:3px solid var(--gold); padding:12px 15px; border-radius:2px; font-family:'Courier New', monospace; font-size:.68rem; color:#6b5a1f; line-height:1.7; margin:10px 0; }
+  .callout.warn{ border-left-color:var(--amber); }
+  .callout.danger{ border-left-color:var(--red); color:var(--red); }
+  .grid-overview{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin-top:8px; }
+  .p-card{ cursor:pointer; background:var(--panel); border:1px solid var(--border); padding:18px 18px; border-radius:var(--radius); }
+  .p-card:hover{ border-color:var(--gold); }
+  .p-card .tag{ font-family:'Courier New', monospace; font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .p-card h3{ font-size:.92rem; font-weight:700; color:var(--forest); margin-bottom:6px; }
+  .p-card p{ color:var(--ink-dim); font-size:.78rem; margin-bottom:10px; }
+  .p-card .meta{ display:flex; gap:10px; font-family:'Courier New', monospace; font-size:.6rem; color:var(--ink-faint); }
+  .risk-badge{ padding:2px 8px; border-radius:20px; font-size:.58rem; font-family:'Courier New', monospace; text-transform:uppercase; }
+  .risk-high{ background:#fbe4e0; color:var(--red); }
+  .risk-mod{ background:#f7ecd6; color:var(--amber); }
+  .risk-low{ background:#e2f0e4; color:var(--green); }
+  .risk-var{ background:#eef0e5; color:var(--forest); }
+  .kv{ display:grid; grid-template-columns:170px 1fr; gap:6px 14px; margin-bottom:6px; font-size:.82rem; }
+  .kv .k{ font-family:'Courier New', monospace; font-size:.64rem; color:var(--gold); text-transform:uppercase; letter-spacing:.04em; padding-top:3px; }
+  table{ width:100%; border-collapse:collapse; font-size:.78rem; margin:8px 0; }
+  th,td{ text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th{ font-family:'Courier New', monospace; color:var(--gold); font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; }
+  td{ color:var(--ink-dim); }
+  .field-row{ display:grid; grid-template-columns:170px 1fr; gap:8px 14px; align-items:start; margin-bottom:10px; }
+  .field-label{ font-family:'Courier New', monospace; font-size:.62rem; color:var(--gold); text-transform:uppercase; padding-top:7px; }
+  input[type=text],textarea,select{ width:100%; background:var(--paper); border:1px solid var(--border); color:var(--ink); padding:7px 9px; border-radius:2px; font-family:Georgia,serif; font-size:.8rem; }
+  textarea{ resize:vertical; min-height:60px; }
+  .row-remove{ background:transparent; border:1px solid var(--border); color:var(--ink-faint); width:26px; height:26px; border-radius:2px; cursor:pointer; }
+  .row-remove:hover{ border-color:var(--red); color:var(--red); }
+  .editable-table-row{ display:grid; grid-template-columns:1fr 100px 34px; gap:6px; margin-bottom:5px; }
+  .risk-item-row{ display:grid; grid-template-columns:1fr 34px; gap:6px; margin-bottom:5px; }
+  .status-pill{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-family:'Courier New', monospace; font-size:.6rem; text-transform:uppercase; }
+  .status-pill.published{ background:#e2f0e4; color:var(--green); }
+  .status-pill.draft{ background:#f7ecd6; color:var(--amber); }
+  .status-pill .dot{ width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .pill{ display:inline-block; background:var(--gold-bg); border:1px solid var(--border); padding:3px 9px; border-radius:20px; font-family:'Courier New', monospace; font-size:.6rem; margin:0 4px 4px 0; color:var(--ink-dim); }
+  .variant-tabs{ display:flex; gap:5px; margin-bottom:12px; }
+  .variant-tab{ padding:5px 13px; border-radius:20px; background:var(--gold-bg); border:1px solid var(--border); cursor:pointer; font-family:'Courier New', monospace; font-size:.62rem; text-transform:uppercase; color:var(--ink-dim); }
+  .variant-tab.active{ background:var(--forest); color:#fff; border-color:var(--forest); }
+  .risk-list{ list-style:none; margin-top:6px; }
+  .risk-list li{ margin-bottom:6px; padding-left:16px; position:relative; color:var(--ink-dim); font-size:.8rem; }
+  .risk-list li::before{ content:'—'; position:absolute; left:0; color:var(--gold); }
+  .diff-add{ background:#e2f0e4; color:var(--green); padding:1px 3px; }
+  .diff-remove{ background:#fbe4e0; color:var(--red); text-decoration:line-through; padding:1px 3px; }
+  .diff-field{ border:1px solid var(--border); border-radius:2px; padding:12px 14px; margin-bottom:8px; background:var(--gold-bg); }
+  .diff-field .df-label{ font-family:'Courier New', monospace; font-size:.6rem; color:var(--gold); text-transform:uppercase; margin-bottom:6px; }
+  .diff-unchanged{ color:var(--ink-faint); font-style:italic; font-size:.68rem; }
+  .version-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border:1px solid var(--border); border-radius:2px; margin-bottom:6px; background:var(--paper); }
+  .version-row .vmeta{ font-family:'Courier New', monospace; font-size:.7rem; color:var(--ink); }
+  .version-row .vtime{ color:var(--ink-faint); font-size:.6rem; }
+  .footer-note{ color:var(--ink-faint); font-family:'Courier New', monospace; font-size:.62rem; margin-top:26px; border-top:1px solid var(--border); padding-top:12px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar" id="appSidebar">
+    <div class="sidebar-top-row">
+      <div class="brand">Vriksha</div>
+      <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Collapse menu">‹</button>
+    </div>
+    <div class="brand-sub">// product note studio — lite</div>
+    <input class="search-box" id="navSearch" placeholder="search products..." oninput="renderNav()">
+    <div id="navList"></div>
+    <div class="nav-group-title">Tools</div>
+    <div class="nav-item" onclick="showView('overview')" id="nav-overview">Overview</div>
+    <div class="nav-item" onclick="showView('create')" id="nav-create">+ New Product</div>
+    <div class="nav-item" onclick="showView('archive')" id="nav-archive">Archived Products</div>
+    <div class="nav-item" onclick="showView('about')" id="nav-about">About This Lite Version</div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+<script>
+const STORAGE_KEY = "vriksha_pns_lite_state_v1";
+const BASE_PRODUCTS = [{"id":"P1","code":"DSOP","name":"Complete Discretionary Stock-Only Portfolio","shortName":"Discretionary Equity (GARP + Value + Special Situations)","category":"Discretionary — Single Asset Class (Equity)","assetClasses":["Indian Equities (direct stocks)"],"objective":"To generate long-term capital appreciation ahead of the broad market by discretionarily blending three complementary equity styles — Growth at a Reasonable Price (GARP), Value, and Special Situations — within a single concentrated stock portfolio, with the fund manager retaining full discretion over stock selection, weights, and style tilt through the cycle.","philosophy":"Pure styles are cyclical: value outperforms growth for years and then reverses; special situations are episodic and lumpy. A discretionary manager who can shift emphasis across GARP, Value, and Special Situations as the cycle turns should produce a smoother, more consistent return stream than any single style sleeve run in isolation. This product is unconstrained by a fixed sub-allocation formula — sleeve weights are a house call, reviewed at least quarterly, and disclosed after the fact.","styleSleeves":[{"name":"GARP (Growth at a Reasonable Price)","weightRange":"35–55%","criteria":"Earnings CAGR (3-yr fwd estimate) > 15%; PEG ratio < 1.5; ROE > 15%; consistent EPS upgrades over trailing 2 quarters; net debt/EBITDA < 2x.","universe":"Nifty 500 constituents, large- and mid-cap bias","indicativeNames":"Titan Company, Divi's Laboratories, Trent, Polycab India, Cholamandalam Investment & Finance"},{"name":"Value","weightRange":"25–40%","criteria":"P/E and P/B below 5-year sector median; EV/EBITDA discount to peer set; dividend yield > sector average; free cash flow positive for 3 consecutive years.","universe":"Nifty 500, cross-cap, benchmarked loosely against Nifty500 Value 50 construction logic (E/P, B/P, S/P, dividend yield composite)","indicativeNames":"Coal India, NTPC, ONGC, select PSU banks, Bharat Petroleum"},{"name":"Special Situations","weightRange":"15–25%","criteria":"Demerger/spin-off arbitrage, corporate restructuring, regulatory-driven re-rating, promoter/PE stake unlocks, turnaround post-stress (asset quality or leverage normalization), open offers/delisting-adjacent situations.","universe":"Cross-cap, event-driven, idiosyncratic — not benchmark-anchored","indicativeNames":"Post-demerger listings, PSU disinvestment candidates, companies exiting IBC/restructuring with visible earnings normalization (illustrative category, not standing recommendations)"}],"portfolioConstructionRules":{"stockCountRange":"15-25","singleStockCap":"10%","sectorCap":"30% (25% BFSI)","cashBuffer":"0-5%"},"portfolioConstruction":"15–25 stocks. Single-stock cap 10% at initiation, sector cap 30% (25% for BFSI). No derivatives, no leverage, no short positions — long-only, fully invested with cash held only for liquidity/redemption buffer (typically 0–5%).","benchmark":"Nifty 500 TRI (primary); Nifty500 Multicap 50:25:25 TRI (secondary, for cap-mix comparison)","rebalanceFrequency":"Discretionary review monthly; formal sleeve-weight and constituent rebalance quarterly, or ad hoc on trigger events (earnings shock, corporate action, stop-loss breach at −20% from entry on a single name).","riskProfile":"High","suitability":"Investors with a 5+ year horizon, high risk tolerance, and comfort with concentrated, benchmark-agnostic equity exposure. Not suitable for capital-protection mandates or horizons under 3 years.","minInvestment":"As per smallcase platform minimum (typically ₹15,000–₹50,000 depending on constituent prices); this is a model-portfolio subscription, not a SEBI-registered PMS mandate (PMS carries a ₹50 lakh regulatory minimum under SEBI (Portfolio Managers) Regulations, 2020 — not applicable here).","fees":"Subscription/performance fee as configured on the smallcase platform (to be finalized before launch) — placeholder: e.g., flat annual subscription fee, no entry load, exit load nil after platform's standard holding period.","taxNote":"Tax implications (STCG/LTCG on direct equity, no pass-through wrapper) to be detailed in a future revision. Not covered in this version of the note.","keyRisks":["Concentration risk from 15–25 stock construction","Style-timing risk — discretionary sleeve reallocation can lag or mistime cycle turns","Special-situations sleeve carries event risk (deal breaks, delayed corporate actions)","No downside hedge — fully long-only equity exposure","Liquidity risk in mid/small-cap names during stress"]},{"id":"P2","code":"DMAP","name":"Complete Discretionary Multi-Asset Portfolio","shortName":"Discretionary Multi-Asset (Equity + REITs + InvITs + ETFs)","category":"Discretionary — Multi Asset Class","assetClasses":["Indian Equities (direct stocks)","REITs","InvITs","Sectoral ETFs","Index ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs"],"objective":"To deliver risk-adjusted total return by combining the stock-only GARP+Value+Special Situations sleeve (Product 1) with listed real-asset yield instruments (REITs, InvITs) and a full ETF toolkit (index, sectoral, factor, commodity, debt/cash) under a single discretionarily-managed, all-weather mandate.","philosophy":"This is the flagship 'one portfolio does everything' product: it retains the alpha-seeking equity engine from Product 1 but wraps it with diversifiers that behave differently across the cycle — REITs and InvITs for bond-like income with equity-like inflation participation, factor and sectoral ETFs for tactical tilts without single-stock risk, commodity ETFs (principally gold) as a portfolio hedge, and debt/cash ETFs as the ballast. Allocation across the eight sleeves is fully discretionary and reviewed at least monthly against a macro/valuation dashboard (rates direction, equity valuation percentile, credit spreads, gold momentum).","strategicAllocationRanges":[{"sleeve":"Direct Equities (GARP+Value+Special Situations, per Product 1)","range":"35–55%"},{"sleeve":"Index ETFs (Nifty 50 / Next 50 / Midcap 150)","range":"5–15%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0–10%"},{"sleeve":"Factor ETFs (Momentum/Alpha/Quality/Low-Vol)","range":"5–15%"},{"sleeve":"REITs (Embassy, Mindspace, Brookfield India, Nexus Select, Knowledge Realty)","range":"5–12%"},{"sleeve":"InvITs (IndiGrid, PowerGrid InvIT, IRB InvIT, National Highways Infra Trust)","range":"5–12%"},{"sleeve":"Commodity ETFs (Gold BeES, Silver BeES)","range":"3–10%"},{"sleeve":"Debt/Cash ETFs (Liquid ETF, Bharat Bond ETF, G-Sec ETF)","range":"5–15%"}],"indicativeInstruments":{"reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust, Knowledge Realty Trust","invits":"IndiGrid Infrastructure Trust, PowerGrid Infrastructure Investment Trust, IRB InvIT Fund, National Highways Infra Trust","indexETFs":"Nippon India ETF Nifty 50 BeES, Nippon India ETF Nifty Next 50 Junior BeES, Nippon India ETF Nifty Midcap 150","sectoralETFs":"Nippon India ETF Nifty Bank BeES, Nippon India ETF Nifty IT, Nippon India ETF Nifty Pharma, Nippon India ETF Nifty India Consumption (FMCG-oriented)","factorETFs":"Nippon India ETF Nifty Alpha Low Volatility 30, ICICI Prudential Nifty Alpha Low-Volatility 30 ETF, Nifty 200 Momentum 30-linked ETFs, Nifty500 Value 50-linked ETFs","commodityETFs":"Nippon India ETF Gold BeES, Nippon India ETF Silver BeES, HDFC Silver ETF","debtCashETFs":"Bharat Bond ETF (target-maturity series), Nippon India ETF Nifty 1D Rate Liquid BeES, LIC MF Nifty 8-13yr G-Sec ETF"},"benchmark":"Custom blended benchmark: 55% Nifty 500 TRI + 15% Nifty REITs & InvITs Index + 15% Nifty 50 Arbitrage/Gold composite + 15% CRISIL Composite Bond Index (weights indicative, to be fixed at launch and disclosed in factsheet).","rebalanceFrequency":"Sleeve-level allocation reviewed monthly; full rebalance to target bands quarterly; hedge/gold sleeve can be adjusted ad hoc on volatility triggers (India VIX > 20).","riskProfile":"Moderate-High (lower than Product 1 due to REIT/InvIT/debt ballast)","suitability":"Investors wanting a single all-in-one discretionary product spanning growth, income, and inflation-hedge sleeves, 4+ year horizon, comfortable with equity-linked drawdowns of 15–25% in stress scenarios.","minInvestment":"As per smallcase platform minimum; not a SEBI PMS mandate.","fees":"To be finalized before launch — placeholder subscription-fee structure per smallcase convention.","taxNote":"Multi-instrument tax treatment (equity STCG/LTCG, REIT/InvIT distribution taxability split between interest/dividend/capital-return components, ETF capital gains) to be detailed in a future revision.","keyRisks":["REIT/InvIT distributions are not guaranteed and are sensitive to occupancy, toll traffic, and regulated tariff resets","Interest-rate sensitivity in InvIT and debt ETF sleeves","Multi-instrument complexity increases tracking and rebalancing friction/costs","Sectoral and factor ETF tilts add cyclicality risk if mistimed","Gold/silver sleeve can drag returns in strong equity bull phases"]},{"id":"P3","code":"DMAERI-RB","name":"Discretionary Multi-Asset ETF/REIT/InvIT Portfolio — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Discretionary Multi-Asset ETF/REIT/InvIT — by Risk Profile","category":"Discretionary — Multi Asset, ETF/REIT/InvIT only (no direct stocks)","assetClasses":["Index ETFs","Sectoral ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs","REITs","InvITs"],"objective":"To offer a fully liquid, exchange-traded, no-direct-stock multi-asset portfolio built entirely from ETFs, REITs, and InvITs, discretionarily allocated across three risk bands so investors can select the variant matching their risk capacity without needing a bespoke stock-picking mandate.","philosophy":"Every constituent here trades on-exchange with T+1 settlement and daily NAV/price discovery — this product exists for investors who want multi-asset diversification with maximum liquidity and minimum single-security risk (no direct equities). The three variants differ only in strategic weight bands between growth (equity ETFs/factor ETFs), income/real-asset (REITs/InvITs), and defensive (debt/cash/gold) sleeves; the instrument universe is shared.","variants":[{"profile":"Aggressive","targetInvestor":"10+ year horizon, high risk tolerance, prioritizes growth over income stability.","allocation":[{"sleeve":"Index ETFs (broad + midcap)","range":"30–40%"},{"sleeve":"Factor ETFs (Momentum/Alpha)","range":"15–20%"},{"sleeve":"Sectoral ETFs (tactical)","range":"5–10%"},{"sleeve":"REITs","range":"8–12%"},{"sleeve":"InvITs","range":"8–12%"},{"sleeve":"Commodity ETFs (Gold/Silver)","range":"3–7%"},{"sleeve":"Debt/Cash ETFs","range":"5–10%"}],"expectedEquityLikeExposure":"~75–85%"},{"profile":"Moderate","targetInvestor":"5–10 year horizon, balanced risk tolerance, wants growth with meaningful income ballast.","allocation":[{"sleeve":"Index ETFs (broad + midcap)","range":"20–28%"},{"sleeve":"Factor ETFs (Quality/Low-Vol tilt)","range":"10–15%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0–8%"},{"sleeve":"REITs","range":"10–15%"},{"sleeve":"InvITs","range":"10–15%"},{"sleeve":"Commodity ETFs (Gold/Silver)","range":"5–10%"},{"sleeve":"Debt/Cash ETFs","range":"15–25%"}],"expectedEquityLikeExposure":"~50–60%"},{"profile":"Conservative","targetInvestor":"3–5 year horizon, low risk tolerance, prioritizes capital stability and income over growth.","allocation":[{"sleeve":"Index ETFs (broad, large-cap only)","range":"8–15%"},{"sleeve":"Factor ETFs (Low-Vol only)","range":"5–8%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0%"},{"sleeve":"REITs","range":"8–12%"},{"sleeve":"InvITs","range":"8–12%"},{"sleeve":"Commodity ETFs (Gold only, inflation hedge)","range":"5–10%"},{"sleeve":"Debt/Cash ETFs","range":"40–55%"}],"expectedEquityLikeExposure":"~20–30%"}],"sharedInstrumentUniverse":{"indexETFs":"Nippon India ETF Nifty 50 BeES, Nippon India ETF Nifty Next 50 Junior BeES, Nippon India ETF Nifty Midcap 150, Mirae Asset Nifty Midcap 150 ETF","sectoralETFs":"Nifty Bank, Nifty IT, Nifty Pharma, Nifty India Consumption ETFs (Nippon India ETF suite, tactical overlay only)","factorETFs":"Nippon India/ICICI Prudential Nifty Alpha Low-Volatility 30 ETF, Nifty 200 Momentum 30 and Nifty500 Value 50-linked ETFs","commodityETFs":"Nippon India ETF Gold BeES, Nippon India ETF Silver BeES","debtCashETFs":"Bharat Bond ETF (maturity-matched to horizon), Nippon India ETF Nifty 1D Rate Liquid BeES, LIC MF Nifty 8-13yr G-Sec ETF","reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust","invits":"IndiGrid Infrastructure Trust, PowerGrid InvIT, National Highways Infra Trust (Aggressive/Moderate may add IRB InvIT for higher yield/higher risk)"},"benchmark":"Aggressive: 75% Nifty 500 TRI + 25% Nifty REITs & InvITs Index. Moderate: 50% Nifty 500 TRI + 20% Nifty REITs & InvITs Index + 30% CRISIL Composite Bond Index. Conservative: 25% Nifty 500 TRI + 15% Nifty REITs & InvITs Index + 60% CRISIL Composite Bond Index.","rebalanceFrequency":"Quarterly calendar rebalance to target bands across all three variants; risk-band drift check monthly (rebalance triggered early if any sleeve breaches its band by >5 percentage points).","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors who want multi-asset diversification but prefer to avoid single-stock risk entirely, choosing the variant matched to their declared risk profile via a standard risk-assessment questionnaire.","minInvestment":"As per smallcase platform minimum for each variant.","fees":"To be finalized before launch — likely uniform subscription fee across the three variants.","taxNote":"To be detailed in a future revision (ETF capital gains, REIT/InvIT distribution component taxability).","keyRisks":["Sectoral/factor ETF tactical sleeves can whipsaw in choppy markets","REIT/InvIT sleeve concentrated in ~9 listed instruments (limited universe in India as of 2026)","Conservative variant still carries ~20-30% equity-like exposure — not a capital-guarantee product","ETF tracking error versus underlying index, especially in less liquid factor ETFs"]},{"id":"P4","code":"DMAMF-RB","name":"Discretionary Multi-Asset Mutual Fund Portfolio — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Discretionary Multi-Asset MF — by Risk Profile","category":"Discretionary — Multi Asset, Mutual Funds only","assetClasses":["Index Funds","Sector Funds","Factor/Smart-Beta Funds","Commodity Funds (Gold/Silver FoF)","Debt/Liquid Funds","REIT/InvIT-focused Funds/FoFs"],"objective":"To replicate the multi-asset diversification of Product 3 using open-ended mutual fund schemes instead of ETFs — for investors who prefer SIP/lumpsum mutual fund rails, don't have (or don't want) a demat/trading account workflow for every transaction, and are comfortable with fund-level expense ratios instead of brokerage/impact cost.","philosophy":"Mutual funds settle T+2/T+3, don't require intraday trading, and support SIPs — a meaningfully different operational profile from ETFs despite tracking similar underlying indices. This product exists as the MF-native equivalent of Product 3 for investors and distributors who operate primarily through the mutual fund ecosystem (folios, SIPs, direct plans).","variants":[{"profile":"Aggressive","allocation":[{"sleeve":"Index Funds (Nifty 50/Next 50/Midcap 150)","range":"30–40%"},{"sleeve":"Factor/Smart-beta Funds (Momentum/Alpha)","range":"15–20%"},{"sleeve":"Sector Funds (tactical)","range":"5–10%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"12–18%"},{"sleeve":"Commodity Funds (Gold/Silver FoF)","range":"3–7%"},{"sleeve":"Debt/Liquid Funds","range":"5–10%"}]},{"profile":"Moderate","allocation":[{"sleeve":"Index Funds","range":"20–28%"},{"sleeve":"Factor/Smart-beta Funds (Quality/Low-Vol)","range":"10–15%"},{"sleeve":"Sector Funds (tactical)","range":"0–8%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"15–20%"},{"sleeve":"Commodity Funds (Gold/Silver FoF)","range":"5–10%"},{"sleeve":"Debt/Liquid Funds","range":"20–30%"}]},{"profile":"Conservative","allocation":[{"sleeve":"Index Funds (large-cap only)","range":"8–15%"},{"sleeve":"Factor/Smart-beta Funds (Low-Vol only)","range":"5–8%"},{"sleeve":"Sector Funds","range":"0%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"10–15%"},{"sleeve":"Commodity Funds (Gold FoF)","range":"5–10%"},{"sleeve":"Debt/Liquid Funds","range":"45–60%"}]}],"indicativeInstruments":{"indexFunds":"Motilal Oswal / Nippon India / ICICI Pru / SBI / UTI Nifty 50, Nifty Next 50 and Nifty Midcap 150 Index Funds (direct plan)","factorFunds":"Nippon India Nifty Alpha Low Volatility 30 Index Fund, Edelweiss Nifty Alpha Low Vol 30 Index Fund, index funds tracking Nifty 200 Momentum 30 / Nifty500 Value 50","sectorFunds":"Banking & Financial Services, Technology, Pharma & Healthcare, and Consumption sector/thematic funds (house-approved list, tactical only)","commodityFunds":"Gold ETF Fund-of-Funds and Silver ETF FoF structures (e.g., Nippon India / ICICI Prudential / Kotak Gold Savings Fund) for investors without demat access","debtLiquidFunds":"Liquid funds, ultra-short duration funds, target-maturity debt index funds (Bharat Bond FoF variants)","reitInvitExposure":"Where a direct REIT/InvIT mutual fund wrapper is unavailable, exposure taken via hybrid/allocation funds with disclosed REIT/InvIT holdings, or via direct REIT/InvIT units held in the same folio-linked demat account where the platform supports it."},"benchmark":"Same blended benchmarks as Product 3, substituting TRI index values (fund performance measured pre-expense-ratio drag against index TRI).","rebalanceFrequency":"Quarterly rebalance; fund selection (scheme-level, not just category-level) reviewed semi-annually for expense ratio, tracking error, and fund manager continuity.","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors preferring the mutual fund operational rail (SIP, no demat dependency for every leg) over direct ETF trading, matched to declared risk profile.","minInvestment":"As per smallcase platform / SIP minimum per fund (typically ₹500–₹5,000 per fund per month for SIP mode).","fees":"To be finalized before launch. Note: underlying fund expense ratios apply in addition to any platform subscription fee — this is structurally different from the ETF variant and should be disclosed prominently.","taxNote":"To be detailed in a future revision (equity fund vs debt fund taxation post the 2023 debt fund indexation changes, FoF taxation treated as debt-fund-equivalent for gold/silver FoFs).","keyRisks":["Double-layer cost: platform fee plus underlying fund expense ratio","Tracking error varies meaningfully by AMC — scheme selection matters as much as category allocation","Limited direct REIT/InvIT mutual fund wrappers in India as of 2026 — this sleeve is structurally weaker via MF route than via direct ETF/unit route","SIP-based averaging can lag lumpsum discretionary timing in strong trending markets"]},{"id":"P5","code":"DMAERI-GOAL","name":"Discretionary Multi-Asset ETF/REIT/InvIT Portfolio — by Life Goal × Risk Profile","shortName":"Discretionary Multi-Asset ETF/REIT/InvIT — Goal-Based","category":"Discretionary — Multi Asset, ETF/REIT/InvIT, Goal-Based","assetClasses":["Index ETFs","Sectoral ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs","REITs","InvITs"],"objective":"To map the Product 3 ETF/REIT/InvIT universe onto specific life goals — retirement, child's education, home down-payment, wealth accumulation — by combining goal time horizon with the investor's risk profile, using a glide-path approach that de-risks automatically as the goal date approaches.","philosophy":"Risk profile alone is incomplete without a time horizon anchor. A 28-year-old saving for retirement in 30 years and a 55-year-old saving for retirement in 3 years may both call themselves 'moderate risk' but need very different portfolios. This product cross-tabulates goal horizon (which sets the glide path) with declared risk tolerance (which sets the glide path's starting aggressiveness and floor), using the same ETF/REIT/InvIT universe as Product 3.","goalFramework":[{"goal":"Retirement (long horizon, 15+ years)","horizonBand":"15+ years to goal","glidePath":"Starts at Aggressive-equivalent allocation (per Product 3), holds until T-10 years, then linearly de-risks toward Conservative-equivalent by the goal date, increasing debt/cash and REIT/InvIT income sleeves at the expense of factor/sectoral ETFs.","riskProfileAdjustment":"Aggressive investor: stays at upper equity band longer (to T-7yrs). Conservative investor: begins de-risking earlier (from T-15yrs)."},{"goal":"Child's Education","horizonBand":"5–18 years to goal (goal date is largely fixed/inflexible)","glidePath":"Because the goal date cannot be deferred like retirement, de-risking is more front-loaded — glide begins at T-7 years regardless of risk profile, reaching a Conservative-equivalent allocation by T-2 years to avoid sequence-of-returns risk right before the expense hits.","riskProfileAdjustment":"Adjusts only the starting aggressiveness and pace of glide, not the requirement to be near-fully de-risked by T-1 year."},{"goal":"Home Down-Payment","horizonBand":"2–7 years to goal","glidePath":"Short-horizon goal — starts materially more conservative than retirement/education goals even for Aggressive-risk investors, capped at Moderate-equivalent allocation maximum, with REIT/InvIT and debt/cash sleeves elevated throughout given limited time to recover from a drawdown.","riskProfileAdjustment":"Aggressive investor at 6–7yr horizon may use Moderate-equivalent band; Conservative investor at <3yr horizon should be routed to Product 3's Conservative variant directly rather than this goal wrapper."},{"goal":"General Wealth Accumulation (no fixed date)","horizonBand":"Open-ended, reviewed annually","glidePath":"No mandatory glide path — allocation stays at the risk-profile-matched static band from Product 3 (Aggressive/Moderate/Conservative) until the investor declares a new goal or horizon.","riskProfileAdjustment":"Directly inherits the relevant Product 3 variant with no time-based modification."}],"portfolioConstructionNote":"Underlying instrument universe, sleeve definitions, and base allocation bands are identical to Product 3. This product's differentiation is entirely in the glide-path overlay logic layered on top of the risk-profile bands — it does not introduce new instruments.","benchmark":"Dynamic — benchmark blend shifts along the same glide path as the portfolio (e.g., retirement goal benchmark starts at Product 3's Aggressive benchmark and migrates toward the Conservative benchmark by goal date).","rebalanceFrequency":"Quarterly tactical rebalance within the current glide-path band; glide-path band itself steps down annually (or per the goal-specific schedule above) rather than continuously.","riskProfile":"Time-varying by design — starts at investor's risk-profile-matched level and mechanically reduces as goal date approaches.","suitability":"Investors with a specific, named financial goal and target date who want the portfolio to automatically de-risk rather than requiring manual rebalancing decisions as the goal nears.","minInvestment":"As per smallcase platform minimum; goal-tracking may require minimum SIP commitment to be meaningful (to be defined at launch).","fees":"To be finalized before launch.","taxNote":"To be detailed in a future revision.","keyRisks":["Glide-path de-risking is calendar/time-based, not market-condition-based — it will de-risk on schedule even mid-rally or mid-selloff","Fixed-date goals (education, home) are the least forgiving of a market drawdown near the goal date despite the glide path's intent to reduce that risk","Requires accurate, honest goal-horizon input from the investor at setup — misstated horizon undermines the entire framework","Same underlying instrument risks as Product 3 (REIT/InvIT distribution variability, ETF tracking error, sectoral tilts)"]},{"id":"P6","code":"DMAMF-GOAL","name":"Discretionary Multi-Asset Mutual Fund Portfolio — by Life Goal × Risk Profile","shortName":"Discretionary Multi-Asset MF — Goal-Based","category":"Discretionary — Multi Asset, Mutual Funds, Goal-Based","assetClasses":["Index Funds","Sector Funds","Factor/Smart-Beta Funds","Commodity Funds","Debt/Liquid Funds","REIT/InvIT-exposed Funds"],"objective":"The mutual-fund-native equivalent of Product 5 — applies the same goal × risk-profile glide-path framework to the Product 4 mutual fund universe, for investors who want goal-based investing through SIP-friendly mutual fund rails rather than ETF trading.","philosophy":"Same rationale as Product 5, translated to the mutual fund operational rail described in Product 4. The glide-path logic (time-based de-risking, goal-specific pacing for fixed-date vs open-ended goals) is identical; only the instrument wrapper changes from ETF/REIT/InvIT units to open-ended mutual fund schemes and FoFs.","goalFramework":[{"goal":"Retirement (long horizon, 15+ years)","horizonBand":"15+ years to goal","glidePath":"Identical structure to Product 5's retirement glide path, applied to Product 4's Aggressive→Conservative fund bands. SIP-based accumulation makes this goal particularly well-suited to the MF rail given rupee-cost-averaging over a multi-decade horizon.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"Child's Education","horizonBand":"5–18 years to goal","glidePath":"Same front-loaded de-risking schedule as Product 5 (glide begins T-7 years, near-fully de-risked by T-1 year), using Product 4's mutual fund sleeves.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"Home Down-Payment","horizonBand":"2–7 years to goal","glidePath":"Same short-horizon conservative cap as Product 5; MF route may be preferred here for investors without a demat account or who want to redeem via a single fund-house transaction near the goal date rather than selling multiple ETF/REIT/InvIT positions on-exchange.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"General Wealth Accumulation","horizonBand":"Open-ended","glidePath":"Inherits the relevant Product 4 static risk-profile band with no time-based modification.","riskProfileAdjustment":"Direct inheritance, as in Product 5."}],"portfolioConstructionNote":"Underlying instrument universe and base allocation bands identical to Product 4. Differentiation is the glide-path overlay only.","benchmark":"Dynamic — same glide-path benchmark logic as Product 5, using Product 4's underlying blended benchmarks.","rebalanceFrequency":"Quarterly within-band rebalance; annual (or goal-specific) glide-path step-down; scheme-level review semi-annually per Product 4.","riskProfile":"Time-varying by design, per goal and declared risk profile.","suitability":"Investors with a named goal and target date who prefer the mutual fund/SIP operational rail over ETF trading.","minInvestment":"As per SIP/lumpsum minimums per underlying fund.","fees":"To be finalized before launch; underlying fund expense ratios apply in addition to platform fee (see Product 4 note).","taxNote":"To be detailed in a future revision.","keyRisks":["Same glide-path timing risks as Product 5","Same double-layer cost and tracking error considerations as Product 4","Weaker direct REIT/InvIT wrapper availability via MF route (see Product 4) may cause this goal-based variant to under-deliver the income/real-asset sleeve versus the ETF equivalent (Product 5) for income-sensitive goals like retirement"]},{"id":"P7","code":"SSFP-RB","name":"Systematic Stock Factor Portfolios — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Systematic Factor Equity — by Risk Profile","category":"Systematic — Single Asset Class (Equity, Rules-Based)","assetClasses":["Indian Equities (direct stocks, factor-screened)"],"objective":"To deliver factor-premia-driven equity returns through a fully rules-based, systematic (non-discretionary) stock selection process, offered in three variants that differ in factor mix and cap-segment exposure to match Aggressive, Moderate, and Conservative risk appetites — in contrast to Products 1–6, which are discretionarily managed.","philosophy":"This product family removes manager discretion from security selection entirely. Stocks are ranked and selected purely by quantitative factor scores (momentum, quality, value, low-volatility, alpha) recomputed on a fixed schedule, following the same construction logic NSE uses for its official strategy indices (Nifty200 Momentum 30, Nifty200 Quality 30, Nifty500 Value 50, Nifty Alpha Low-Volatility 30, and their multi-factor combinations). The only 'discretionary' element is the initial choice of which factor blend and risk band an investor is placed in — thereafter the portfolio rebalances mechanically.","variants":[{"profile":"Aggressive","factorMix":"60% Momentum, 25% Alpha, 15% Quality","universe":"Nifty 200 (large + mid-cap)","stockCount":"25–30","rationale":"Momentum and alpha factors have historically shown the highest returns but also the highest turnover and drawdown risk — appropriate only for high risk tolerance.","referenceIndex":"Nifty 200 Momentum 30 / Nifty Alpha 50 construction logic"},{"profile":"Moderate","factorMix":"35% Quality, 30% Alpha, 20% Low-Volatility, 15% Momentum","universe":"Nifty 200","stockCount":"30","rationale":"Blending quality and low-volatility with alpha/momentum dampens drawdowns while retaining meaningful factor premia capture — the NSE 'Alpha Quality Low-Volatility 30' style blend.","referenceIndex":"Nifty Alpha Quality Low-Volatility 30 construction logic"},{"profile":"Conservative","factorMix":"40% Low-Volatility, 30% Quality, 30% Value","universe":"Nifty 100 (large-cap only)","stockCount":"30","rationale":"Prioritizes capital stability — low-volatility and quality factors have historically delivered the smallest drawdowns of any single-factor strategy, at some cost to upside capture in strong bull phases.","referenceIndex":"Nifty100 Quality 30 / Nifty100 Low Volatility 30 construction logic"}],"selectionMethodology":"Factor scores computed quarterly using trailing 12-month price momentum (for momentum), 5-year ROE/leverage/earnings-variability composite (for quality), E/P-B/P-S/P-dividend yield composite (for value), and trailing volatility/beta (for low-volatility), following NSE Indices' published methodology for equivalent strategy indices. Stocks ranked, top N selected per variant, weighted by factor score (not equal-weight, not free-float market cap) subject to a single-stock cap of 8% and sector cap of 30%.","benchmark":"Aggressive: Nifty 200 Momentum 30 TRI. Moderate: Nifty Alpha Quality Low-Volatility 30 TRI. Conservative: Nifty100 Low Volatility 30 TRI / Nifty100 Quality 30 TRI blend.","rebalanceFrequency":"Quarterly, calendar-scheduled (aligned to NSE Indices' own quarterly review cycle for comparability), fully mechanical — no ad hoc discretionary rebalancing outside the schedule except for corporate actions (delisting, M&A) requiring an immediate substitution.","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate-High, Conservative = Moderate","suitability":"Investors who prefer rules-based, emotion-free systematic exposure over discretionary stock-picking, and who understand factor investing can underperform the broad market for extended periods (factor drawdowns/'crowding' cycles).","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — systematic products typically command a lower fee than discretionary products given the absence of active management; to be reflected in final pricing.","taxNote":"To be detailed in a future revision.","keyRisks":["Factor premia are cyclical and can underperform market-cap-weighted benchmarks for multi-year stretches (e.g., value underperformed growth for most of 2018–2020 in India)","Mechanical rebalancing does not adapt to fundamental red flags between scheduled reviews unless a corporate-action trigger fires","Higher portfolio turnover (especially Aggressive/momentum variant) increases transaction costs and short-term capital gains incidence","Factor crowding risk — as factor investing has grown, some premia have compressed versus historical backtests"]},{"id":"P8","code":"SSF-REIG-RB","name":"Systematic Stock Factor + REITs + InvIT + Gold + Cash Portfolios — Risk-Profiled","shortName":"Systematic Factor + Real Assets + Gold + Cash — by Risk Profile","category":"Systematic — Multi Asset (Factor Equity + Real Assets + Gold + Cash)","assetClasses":["Factor-screened Indian Equities","REITs","InvITs","Gold (ETF)","Cash/Debt ETF"],"objective":"To wrap the systematic factor equity engine from Product 7 with a fixed-rules multi-asset overlay — REITs and InvITs for income/real-asset diversification, gold for inflation/tail-risk hedging, and cash/debt for stability — with all sleeve weights determined by a fixed rules-based allocation table per risk band rather than manager discretion.","philosophy":"This is the systematic (rules-based) counterpart to Product 2's discretionary multi-asset approach, but deliberately narrower in instrument scope: only REITs, InvITs, gold, and cash are added to the factor equity core — no sectoral tilts, no factor ETF layering, no special situations. The narrower, fixed universe keeps the entire product mechanically rebalanceable without judgment calls, which is the point of a 'systematic' offering.","variants":[{"profile":"Aggressive","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Aggressive variant)","range":"70–80%"},{"sleeve":"REITs (equal-weighted across eligible names)","range":"5–8%"},{"sleeve":"InvITs (equal-weighted across eligible names)","range":"5–8%"},{"sleeve":"Gold ETF","range":"3–7%"},{"sleeve":"Cash/Debt ETF","range":"3–7%"}]},{"profile":"Moderate","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Moderate variant)","range":"50–60%"},{"sleeve":"REITs (equal-weighted)","range":"8–12%"},{"sleeve":"InvITs (equal-weighted)","range":"8–12%"},{"sleeve":"Gold ETF","range":"5–10%"},{"sleeve":"Cash/Debt ETF","range":"10–20%"}]},{"profile":"Conservative","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Conservative variant)","range":"25–35%"},{"sleeve":"REITs (equal-weighted)","range":"8–12%"},{"sleeve":"InvITs (equal-weighted)","range":"8–12%"},{"sleeve":"Gold ETF","range":"8–15%"},{"sleeve":"Cash/Debt ETF","range":"30–45%"}]}],"indicativeInstruments":{"equity":"Per Product 7's variant-matched factor screen","reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust (equal-weighted, rebalanced quarterly; no discretionary over/underweighting)","invits":"IndiGrid Infrastructure Trust, PowerGrid InvIT, National Highways Infra Trust (equal-weighted; IRB InvIT included only in Aggressive variant given its higher yield/higher volatility profile)","gold":"Nippon India ETF Gold BeES (or lowest-tracking-error, highest-AUM gold ETF at each rebalance date per a fixed selection rule)","cashDebt":"Nippon India ETF Nifty 1D Rate Liquid BeES for the cash sleeve; Bharat Bond ETF (maturity nearest to a 3-year constant-maturity target) for the debt sleeve"},"selectionMethodology":"Equity sleeve: identical mechanical factor process as Product 7. REIT/InvIT sleeves: equal-weight across all SEBI-listed, exchange-traded REITs/InvITs meeting a minimum free-float market cap and 6-month average daily traded value threshold (fixed rule, reviewed annually for universe additions as new REITs/InvITs list). Gold/cash sleeves: single-instrument or rules-based instrument selection, no discretion.","benchmark":"Aggressive: 75% Nifty200 Momentum 30 TRI + 15% Nifty REITs & InvITs Index + 10% Domestic Gold Price. Moderate: 55% factor-blend TRI + 20% Nifty REITs & InvITs Index + 10% Gold + 15% CRISIL Liquid Fund Index. Conservative: 30% factor-blend TRI + 20% Nifty REITs & InvITs Index + 12% Gold + 38% CRISIL Composite Bond Index.","rebalanceFrequency":"Quarterly, fully calendar-scheduled and mechanical across all sleeves — no discretionary intra-quarter changes except corporate-action-driven substitutions (delisting, merger).","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors wanting the diversification benefit of Product 2 but delivered through a fully rules-based, lower-discretion process with a narrower, simpler instrument set.","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — expected to price below the fully discretionary Product 2 given the systematic/rules-based construction.","taxNote":"To be detailed in a future revision.","keyRisks":["Equal-weight REIT/InvIT construction does not distinguish between stronger and weaker underlying real-asset fundamentals — a fixed rule, not a credit judgment","Same factor cyclicality risk as Product 7 in the equity sleeve","Gold sleeve is a single-instrument concentration (no diversification across gold ETF providers by design, for simplicity)","Narrower instrument universe than Product 2 means less flexibility to respond to emerging opportunities (e.g., a new REIT listing enters only at the next scheduled review)"]},{"id":"P9","code":"SSF-REIG-GOAL","name":"Systematic Stock Factor + REITs + InvIT + Gold + Cash Portfolios — by Life Goal × Risk Profile","shortName":"Systematic Factor + Real Assets + Gold + Cash — Goal-Based","category":"Systematic — Multi Asset, Goal-Based","assetClasses":["Factor-screened Indian Equities","REITs","InvITs","Gold (ETF)","Cash/Debt ETF"],"objective":"To apply the same goal × risk-profile glide-path framework used in Products 5 and 6 to the fully systematic, rules-based Product 8 universe — giving investors a mechanical, non-discretionary, goal-aware portfolio that de-risks on a fixed schedule as the goal date approaches.","philosophy":"This is the most 'rules on rules' product in the suite: the equity sleeve is factor-systematic (Product 7 logic), the multi-asset overlay is fixed-allocation systematic (Product 8 logic), and the goal adaptation is a scheduled glide path (Products 5/6 logic) rather than discretionary judgment. Every allocation decision in this product — security selection, sleeve weight, and time-based de-risking — follows a pre-published rule, leaving no discretionary decision points after initial goal/risk-profile classification.","goalFramework":[{"goal":"Retirement (15+ years)","horizonBand":"15+ years to goal","glidePath":"Starts at Product 8's Aggressive variant, holds until T-10 years, then steps down annually through Moderate toward Conservative by the goal date — identical step-down calendar logic to Product 5/6, applied to Product 8's fixed sleeve weights at each step."},{"goal":"Child's Education (5–18 years)","horizonBand":"5–18 years to goal","glidePath":"Front-loaded de-risking from T-7 years to near-fully Conservative by T-1 year, per the Product 5/6 education schedule, using Product 8's mechanical sleeve construction at each step."},{"goal":"Home Down-Payment (2–7 years)","horizonBand":"2–7 years to goal","glidePath":"Capped at Moderate-equivalent even for Aggressive-risk investors beyond a 6-year horizon; below 3 years, investor is routed directly to Product 8's Conservative variant rather than a goal-wrapped glide."},{"goal":"General Wealth Accumulation","horizonBand":"Open-ended","glidePath":"Static allocation at the investor's declared risk-profile-matched Product 8 variant; no time-based step-down."}],"portfolioConstructionNote":"No new instruments or selection rules are introduced versus Product 8 — this product only adds the fixed, calendar-based glide-path step-down schedule. All equity factor screening, REIT/InvIT equal-weighting, and gold/cash instrument selection rules are inherited unchanged from Products 7 and 8.","benchmark":"Dynamic, glide-path-matched blend of Product 8's three variant benchmarks, stepping down on the same schedule as the portfolio.","rebalanceFrequency":"Quarterly mechanical rebalance within the current glide-path step; annual (or goal-specific) step-down per the schedule above — both fully calendar-driven, no discretionary triggers.","riskProfile":"Time-varying by design, mechanically determined by goal horizon and declared risk profile — the least discretionary product in the entire suite.","suitability":"Investors who want maximum rules-based transparency and minimum manager discretion in a goal-based multi-asset product — e.g., investors who specifically want to avoid manager judgment calls at every level of the portfolio.","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — expected to be the lowest-cost product in the suite given full systematic construction at both the security-selection and glide-path level.","taxNote":"To be detailed in a future revision.","keyRisks":["Same glide-path timing risk as Products 5/6 — de-risks on schedule regardless of market conditions","Same factor cyclicality and equal-weight REIT/InvIT construction risks as Products 7/8","Zero discretionary override means the product cannot deviate from its rules even if a manager would judge deviation prudent (e.g., an obviously deteriorating REIT sponsor) — by design, but worth flagging explicitly to investors as a trade-off, not an oversight"]}];
+
+let state = { products: {}, lastSaved: null };
+
+function initState() {
+  const saved = loadFromLocalStorage();
+  if (saved) {
+    state = saved;
+    Object.values(state.products).forEach(entry => { if (entry.archived === undefined) entry.archived = false; });
+    return;
+  }
+  BASE_PRODUCTS.forEach(p => {
+    state.products[p.id] = { current: JSON.parse(JSON.stringify(p)), status: "draft", archived: false, versions: [] };
+  });
+  saveToLocalStorage();
+}
+function saveToLocalStorage(){
+  try { state.lastSaved = new Date().toISOString(); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn("localStorage save failed", e); }
+}
+function loadFromLocalStorage(){
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }
+  catch(e){ console.warn("localStorage load failed", e); return null; }
+}
+function getProduct(id){ return state.products[id].current; }
+function getEntry(id){ return state.products[id]; }
+function getAllProducts(opts){
+  opts = opts || {};
+  const includeArchived = !!opts.includeArchived;
+  return Object.keys(state.products).map(id=>state.products[id]).filter(e=>includeArchived || !e.archived).map(e=>e.current)
+    .sort((a,b)=>a.id.localeCompare(b.id, undefined, {numeric:true}));
+}
+function getArchivedProducts(){
+  return Object.keys(state.products).map(id=>state.products[id]).filter(e=>e.archived).map(e=>e.current)
+    .sort((a,b)=>a.id.localeCompare(b.id, undefined, {numeric:true}));
+}
+function nextProductId(){
+  const existing = Object.keys(state.products);
+  let n = 10;
+  while(existing.includes("PN"+n)) n++;
+  return "PN"+n;
+}
+function createProductFromTemplate(templateId, newName, newCode){
+  const template = getProduct(templateId);
+  const newId = nextProductId();
+  const cloned = JSON.parse(JSON.stringify(template));
+  cloned.id = newId;
+  cloned.code = newCode || (template.code + "-NEW");
+  cloned.name = newName || (template.name + " (Copy)");
+  cloned.shortName = newName || (template.shortName ? template.shortName + " (Copy)" : cloned.name);
+  state.products[newId] = { current: cloned, status: "draft", archived: false, versions: [] };
+  saveToLocalStorage();
+  return newId;
+}
+function archiveProduct(id){ state.products[id].archived = true; saveToLocalStorage(); }
+function unarchiveProduct(id){ state.products[id].archived = false; saveToLocalStorage(); }
+
+let currentView = "overview";
+let currentProductId = null;
+
+const SIDEBAR_COLLAPSE_KEY = "vriksha_pns_lite_sidebar_collapsed_v1";
+function toggleSidebar(){
+  const sb = document.getElementById("appSidebar");
+  const btn = document.getElementById("sidebarToggle");
+  const collapsed = sb.classList.toggle("collapsed");
+  btn.textContent = collapsed ? "›" : "‹";
+  btn.title = collapsed ? "Expand menu" : "Collapse menu";
+  try { localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? "1" : "0"); } catch(e){}
+}
+function initSidebarCollapse(){
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1"; } catch(e){}
+  if(collapsed){
+    const sb = document.getElementById("appSidebar");
+    const btn = document.getElementById("sidebarToggle");
+    if(sb) sb.classList.add("collapsed");
+    if(btn){ btn.textContent = "›"; btn.title = "Expand menu"; }
+  }
+}
+
+function riskClass(r){
+  if(!r) return "risk-var";
+  const s = r.toLowerCase();
+  if(s.includes("variant")||s.includes("time-varying")) return "risk-var";
+  if(s.includes("high")) return "risk-high";
+  if(s.includes("moderate")||s.includes("mod")) return "risk-mod";
+  if(s.includes("low")) return "risk-low";
+  return "risk-var";
+}
+
+function renderNav(){
+  const q = (document.getElementById("navSearch").value||"").toLowerCase();
+  const list = document.getElementById("navList");
+  list.innerHTML = "";
+  const all = getAllProducts();
+  const discretionary = all.filter(p=>p.category.startsWith("Discretionary"));
+  const systematic = all.filter(p=>p.category.startsWith("Systematic"));
+  const other = all.filter(p=>!p.category.startsWith("Discretionary") && !p.category.startsWith("Systematic"));
+  function group(title, arr){
+    const filtered = arr.filter(p=>!q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+    if(!filtered.length) return;
+    const h = document.createElement("div"); h.className="nav-group-title"; h.textContent=title; list.appendChild(h);
+    filtered.forEach(p=>{
+      const entry = getEntry(p.id);
+      const el = document.createElement("div");
+      el.className = "nav-item" + (currentProductId===p.id && (currentView==="product"||currentView==="edit"||currentView==="history") ? " active":"");
+      el.innerHTML = `<span>${p.shortName||p.name}<br><span class="code">${p.code} · ${p.id}</span></span><span class="status-dot ${entry.status}"></span>`;
+      el.onclick = ()=>showProduct(p.id);
+      list.appendChild(el);
+    });
+  }
+  group("Discretionary", discretionary);
+  group("Systematic", systematic);
+  group("Other / Custom", other);
+  const archivedCount = getArchivedProducts().length;
+  if(archivedCount){
+    const h = document.createElement("div"); h.className="nav-group-title"; h.textContent=`Archived (${archivedCount})`; list.appendChild(h);
+    const el = document.createElement("div"); el.className="nav-item"; el.style.color="var(--ink-faint)";
+    el.textContent = "View archived products →"; el.onclick=()=>showView("archive"); list.appendChild(el);
+  }
+}
+
+function showView(v){
+  currentView = v;
+  document.querySelectorAll(".sidebar > .nav-item").forEach(n=>n.classList.remove("active"));
+  const navEl = document.getElementById("nav-"+v);
+  if(navEl) navEl.classList.add("active");
+  if(v==="overview") renderOverview();
+  if(v==="archive") renderArchiveView();
+  if(v==="create") renderCreateView();
+  if(v==="about") renderAboutView();
+  renderNav();
+}
+function showProduct(id){ currentView="product"; currentProductId=id; renderProduct(id); renderNav(); }
+function showEdit(id){ currentView="edit"; currentProductId=id; renderEdit(id); renderNav(); }
+function showHistory(id){ currentView="history"; currentProductId=id; renderHistory(id); renderNav(); }
+
+function renderOverview(){
+  const main = document.getElementById("main");
+  const all = getAllProducts();
+  const publishedCount = all.filter(p=>getEntry(p.id).status==="published").length;
+  const archivedCount = getArchivedProducts().length;
+  main.innerHTML = `
+    <div class="topbar">
+      <div><h1>Product Note Studio (Lite)</h1><div class="topbar-sub">${all.length} active · ${publishedCount} published · ${all.length-publishedCount} draft${archivedCount?` · ${archivedCount} archived`:""}</div></div>
+      <div class="toolbar">
+        <button class="btn primary" onclick="showView('create')">+ New Product</button>
+        <button class="btn" onclick="downloadAllCsv()">Export All → CSV</button>
+      </div>
+    </div>
+    <div class="callout">Lite companion to the full Vriksha Product Note Studio. Same core editing, publish/version, and diff workflow — Word/Excel export is replaced by CSV/JSON download here since this sandbox only allows a narrow set of libraries. Use the full studio file for Word/Excel exports and CSV constituent upload.</div>
+    <div class="grid-overview" id="overviewGrid"></div>
+  `;
+  const grid = document.getElementById("overviewGrid");
+  all.forEach(p=>{
+    const isSys = p.category.startsWith("Systematic");
+    const entry = getEntry(p.id);
+    const card = document.createElement("div");
+    card.className = "p-card";
+    card.onclick = ()=>showProduct(p.id);
+    card.innerHTML = `
+      <span class="tag">${p.id} · ${p.code} <span class="status-pill ${entry.status}" style="margin-left:auto;"><span class="dot"></span>${entry.status}</span></span>
+      <h3>${p.name}</h3>
+      <p>${(p.objective||"").slice(0,120)}...</p>
+      <div class="meta"><span class="risk-badge ${riskClass(p.riskProfile)}">${p.riskProfile}</span><span>v${entry.versions.length}</span></div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderCreateView(){
+  const main = document.getElementById("main");
+  const all = getAllProducts();
+  const options = all.map(p=>`<option value="${p.id}">${p.id} — ${p.name}</option>`).join("");
+  main.innerHTML = `
+    <div class="topbar"><div><h1>New Product Note</h1><div class="topbar-sub">Clone an existing product as a starting shape</div></div></div>
+    <div class="callout">Choose the closest existing product structurally. This copies its field shape (sleeves, variants, or goal framework), not its content.</div>
+    <div class="card">
+      <div class="field-row"><div class="field-label">Template</div><select id="createTemplateSelect">${options}</select></div>
+      <div class="field-row"><div class="field-label">New Name</div><input type="text" id="createNameInput" placeholder="Product name"></div>
+      <div class="field-row"><div class="field-label">New Code</div><input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV"></div>
+      <div style="margin-top:14px;"><button class="btn primary" onclick="handleCreateProduct()">Create &amp; Edit</button> <button class="btn" onclick="showView('overview')">Cancel</button></div>
+    </div>
+  `;
+}
+function handleCreateProduct(){
+  const templateId = document.getElementById("createTemplateSelect").value;
+  const name = document.getElementById("createNameInput").value.trim();
+  const code = document.getElementById("createCodeInput").value.trim();
+  if(!name){ alert("Enter a name for the new product."); return; }
+  const newId = createProductFromTemplate(templateId, name, code||undefined);
+  showEdit(newId);
+}
+
+function renderArchiveView(){
+  const main = document.getElementById("main");
+  const archived = getArchivedProducts();
+  main.innerHTML = `<div class="topbar"><div><h1>Archived Products</h1><div class="topbar-sub">${archived.length} archived · recoverable anytime</div></div></div>
+    <div class="callout">Archiving never deletes data. Everything here can be restored.</div>
+    <div class="grid-overview" id="archiveGrid"></div>`;
+  const grid = document.getElementById("archiveGrid");
+  if(!archived.length){ grid.innerHTML = `<div class="card"><p style="color:var(--ink-faint);">No archived products.</p></div>`; return; }
+  archived.forEach(p=>{
+    const card = document.createElement("div"); card.className="p-card";
+    card.innerHTML = `<span class="tag">${p.id} · ${p.code}</span><h3>${p.name}</h3><p>${(p.objective||"").slice(0,120)}...</p>
+      <div class="toolbar" style="margin-top:8px;">
+        <button class="btn small" onclick="event.stopPropagation(); showProduct('${p.id}')">View</button>
+        <button class="btn small primary" onclick="event.stopPropagation(); handleUnarchive('${p.id}')">Restore</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+function handleUnarchive(id){ unarchiveProduct(id); renderNav(); showView("archive"); }
+function handleArchive(id){
+  if(!confirm("Archive this product? Recoverable anytime from Archived Products.")) return;
+  archiveProduct(id); renderNav(); showView("overview");
+}
+
+function renderAboutView(){
+  const main = document.getElementById("main");
+  main.innerHTML = `
+    <div class="topbar"><h1>About This Lite Version</h1></div>
+    <div class="card">
+      <p style="margin-bottom:12px;">This is a companion to the full <strong>Vriksha Product Note Studio</strong> (a standalone HTML file you run outside Cowork). It exists here for quick access across chat sessions but runs inside Cowork's sandboxed artifact environment, which only permits a narrow set of libraries — no spreadsheet or Word-document generation, no CSV-parsing library, and light-mode styling only.</p>
+      <p style="margin-bottom:12px;"><strong>What's the same:</strong> product data model, structured editing (allocation ranges, variants, caps), freeform prose editing, publish/version/diff/revert workflow, create-from-template, archive/unarchive.</p>
+      <p style="margin-bottom:12px;"><strong>What's different here:</strong> exports are CSV/JSON downloads instead of real .xlsx/.docx files. No CSV constituent upload (no parsing library available). No email button (kept in the full studio only).</p>
+      <p style="margin-bottom:12px;"><strong>Data is separate:</strong> this Lite version's local storage is scoped to this artifact and does <em>not</em> sync with the standalone file's data. Treat them as two independent working copies — use Backup/Sync-style JSON export here (see Overview → Export All) if you want to move edits between them manually.</p>
+      <p style="color:var(--ink-faint); font-size:.78rem;">For the full-featured version with real Word/Excel export and CSV upload, use the standalone HTML file delivered separately.</p>
+    </div>
+  `;
+}
+
+function kv(label, value){ return `<div class="kv"><div class="k">${label}</div><div>${value}</div></div>`; }
+
+function renderProduct(id){
+  const p = getProduct(id); const entry = getEntry(id);
+  const main = document.getElementById("main");
+  let html = `
+    <div class="topbar">
+      <div><h1>${p.name}</h1><div class="topbar-sub">${p.category} · ${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · v${entry.versions.length}</div></div>
+      <div class="toolbar">
+        <button class="btn primary" onclick="showEdit('${p.id}')">Edit</button>
+        <button class="btn" onclick="showHistory('${p.id}')">History &amp; Diff</button>
+        <button class="btn" onclick="downloadProductCsv('${p.id}')">→ CSV</button>
+        <button class="btn" onclick="downloadProductJson('${p.id}')">→ JSON</button>
+        ${entry.archived ? `<button class="btn" onclick="handleUnarchive('${p.id}')">Restore</button>` : `<button class="btn danger" onclick="handleArchive('${p.id}')">Archive</button>`}
+      </div>
+    </div>
+    <div class="card">
+      ${kv("Risk Profile", `<span class="risk-badge ${riskClass(p.riskProfile)}">${p.riskProfile}</span>`)}
+      ${kv("Asset Classes", (p.assetClasses||[]).map(a=>`<span class="pill">${a}</span>`).join(""))}
+      ${kv("Benchmark", p.benchmark)}
+      ${kv("Rebalance Frequency", p.rebalanceFrequency)}
+      ${kv("Min. Investment", p.minInvestment||"—")}
+      ${kv("Fees", p.fees||"—")}
+    </div>
+    <h2 class="section">Investment Objective</h2><div class="card"><p>${p.objective}</p></div>
+    <h2 class="section">Philosophy &amp; Methodology</h2><div class="card"><p>${p.philosophy||p.selectionMethodology||""}</p></div>
+  `;
+  if(p.styleSleeves){
+    html += `<h2 class="section">Style Sleeves</h2><div class="card"><table><tr><th>Sleeve</th><th>Weight</th><th>Criteria</th></tr>`;
+    p.styleSleeves.forEach(s=>{ html += `<tr><td><strong>${s.name}</strong></td><td>${s.weightRange}</td><td>${s.criteria}</td></tr>`; });
+    html += `</table></div>`;
+  }
+  if(p.strategicAllocationRanges){
+    html += `<h2 class="section">Strategic Allocation Ranges</h2><div class="card"><table><tr><th>Sleeve</th><th>Range</th></tr>`;
+    p.strategicAllocationRanges.forEach(a=>{ html += `<tr><td>${a.sleeve}</td><td>${a.range}</td></tr>`; });
+    html += `</table></div>`;
+  }
+  if(p.variants){
+    html += `<h2 class="section">Risk-Profile Variants</h2><div class="card"><div class="variant-tabs">` +
+      p.variants.map((v,i)=>`<div class="variant-tab ${i===0?'active':''}" onclick="switchVariant('${p.id}',${i})" id="vtab-${p.id}-${i}">${v.profile}</div>`).join("") + `</div>`;
+    p.variants.forEach((v,i)=>{
+      html += `<div id="vpanel-${p.id}-${i}" style="display:${i===0?'block':'none'};">`;
+      if(v.allocation){
+        html += `<table><tr><th>Sleeve</th><th>Range</th></tr>`;
+        v.allocation.forEach(a=>{ html += `<tr><td>${a.sleeve}</td><td>${a.range}</td></tr>`; });
+        html += `</table>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+  if(p.goalFramework){
+    html += `<h2 class="section">Life Goal Framework</h2><div class="card">`;
+    p.goalFramework.forEach(g=>{ html += `<div style="margin-bottom:12px;"><strong>${g.goal}</strong> <span class="pill">${g.horizonBand}</span><p style="margin-top:6px; color:var(--ink-dim); font-size:.8rem;">${g.glidePath}</p></div>`; });
+    html += `</div>`;
+  }
+  html += `<h2 class="section">Suitability</h2><div class="card"><p>${p.suitability}</p></div>`;
+  html += `<h2 class="section">Key Risks</h2><div class="card"><ul class="risk-list">`;
+  (p.keyRisks||[]).forEach(r=>{ html += `<li>${r}</li>`; });
+  html += `</ul></div>`;
+  html += `<div class="footer-note">Product code ${p.code} · Status: ${entry.status.toUpperCase()} · ${entry.versions.length} version(s) · Lite view — internal document only.</div>`;
+  main.innerHTML = html;
+}
+
+function switchVariant(pid, idx){
+  const p = getProduct(pid);
+  p.variants.forEach((v,i)=>{
+    const panel = document.getElementById(`vpanel-${pid}-${i}`);
+    const tab = document.getElementById(`vtab-${pid}-${i}`);
+    if(panel) panel.style.display = i===idx?"block":"none";
+    if(tab) tab.classList.toggle("active", i===idx);
+  });
+}
+
+function escAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+function escText(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function sumRangeHighs(rows){
+  let lo=0, hi=0;
+  rows.forEach(r=>{
+    const m = String(r).match(/(\d+(?:\.\d+)?)\s*[–\-]\s*(\d+(?:\.\d+)?)/);
+    if(m){ lo+=parseFloat(m[1]); hi+=parseFloat(m[2]); }
+    else { const m2 = String(r).match(/(\d+(?:\.\d+)?)/); if(m2){ lo+=parseFloat(m2[1]); hi+=parseFloat(m2[1]); } }
+  });
+  return {lo,hi};
+}
+function weightSumBadge(rows){
+  const {lo,hi} = sumRangeHighs(rows.map(r=>r.range||r.weightRange));
+  const ok = lo<=100 && hi>=95 && hi<=115;
+  return `<span class="pill" style="color:${ok?'var(--green)':'var(--red)'};">Range sums: low ${lo.toFixed(0)}% – high ${hi.toFixed(0)}% ${ok?'(plausible)':'(check — should bracket 100%)'}</span>`;
+}
+
+function renderEdit(id){
+  const p = getProduct(id); const entry = getEntry(id);
+  const main = document.getElementById("main");
+  let html = `
+    <div class="topbar">
+      <div><h1>Edit — ${p.name}</h1><div class="topbar-sub">${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span></div></div>
+      <div class="toolbar">
+        <button class="btn" onclick="showProduct('${p.id}')">← Back</button>
+        <button class="btn" onclick="addRisk('${p.id}')">+ Add Risk</button>
+        <button class="btn primary" onclick="publishProduct('${p.id}')">Publish Version</button>
+      </div>
+    </div>
+    <div class="callout">Structured fields (allocation, weights) validate as you type. Prose fields are freeform. Nothing is versioned until Publish.</div>
+    <h2 class="section">Key Facts</h2>
+    <div class="card">
+      <div class="field-row"><div class="field-label">Risk Profile</div><input type="text" value="${escAttr(p.riskProfile)}" onchange="updateField('${id}','riskProfile',this.value)"></div>
+      <div class="field-row"><div class="field-label">Benchmark</div><input type="text" value="${escAttr(p.benchmark)}" onchange="updateField('${id}','benchmark',this.value)"></div>
+      <div class="field-row"><div class="field-label">Rebalance</div><input type="text" value="${escAttr(p.rebalanceFrequency)}" onchange="updateField('${id}','rebalanceFrequency',this.value)"></div>
+      <div class="field-row"><div class="field-label">Min Investment</div><input type="text" value="${escAttr(p.minInvestment||'')}" onchange="updateField('${id}','minInvestment',this.value)"></div>
+      <div class="field-row"><div class="field-label">Fees</div><input type="text" value="${escAttr(p.fees||'')}" onchange="updateField('${id}','fees',this.value)"></div>
+    </div>
+    <h2 class="section">Objective &amp; Philosophy</h2>
+    <div class="card">
+      <div class="field-row"><div class="field-label">Objective</div><textarea rows="3" onchange="updateField('${id}','objective',this.value)">${escText(p.objective)}</textarea></div>
+      <div class="field-row"><div class="field-label">Philosophy</div><textarea rows="4" onchange="updateField('${id}','philosophy',this.value)">${escText(p.philosophy||'')}</textarea></div>
+      <div class="field-row"><div class="field-label">Suitability</div><textarea rows="3" onchange="updateField('${id}','suitability',this.value)">${escText(p.suitability||'')}</textarea></div>
+    </div>
+  `;
+  if(p.styleSleeves){
+    html += `<h2 class="section">Style Sleeves</h2><div class="card">`;
+    p.styleSleeves.forEach((s,i)=>{
+      html += `<div class="editable-table-row" style="grid-template-columns:1fr 1fr 100px 34px;">
+        <input type="text" value="${escAttr(s.name)}" onchange="updateSleeveField('${id}',${i},'name',this.value)">
+        <input type="text" value="${escAttr(s.indicativeNames||'')}" onchange="updateSleeveField('${id}',${i},'indicativeNames',this.value)" placeholder="Indicative names">
+        <input type="text" value="${escAttr(s.weightRange)}" onchange="updateSleeveField('${id}',${i},'weightRange',this.value)">
+        <button class="row-remove" onclick="removeSleeve('${id}',${i})">×</button>
+      </div>
+      <textarea rows="2" style="margin-bottom:10px;" onchange="updateSleeveField('${id}',${i},'criteria',this.value)">${escText(s.criteria||'')}</textarea>`;
+    });
+    html += weightSumBadge(p.styleSleeves);
+    html += `<div style="margin-top:10px;"><button class="btn small" onclick="addSleeve('${id}')">+ Add Sleeve</button></div></div>`;
+  }
+  if(p.strategicAllocationRanges){
+    html += `<h2 class="section">Strategic Allocation Ranges</h2><div class="card">`;
+    p.strategicAllocationRanges.forEach((a,i)=>{
+      html += `<div class="editable-table-row">
+        <input type="text" value="${escAttr(a.sleeve)}" onchange="updateAllocField('${id}','strategicAllocationRanges',${i},'sleeve',this.value)">
+        <input type="text" value="${escAttr(a.range)}" onchange="updateAllocField('${id}','strategicAllocationRanges',${i},'range',this.value)">
+        <button class="row-remove" onclick="removeAllocRow('${id}','strategicAllocationRanges',${i})">×</button>
+      </div>`;
+    });
+    html += weightSumBadge(p.strategicAllocationRanges);
+    html += `<div style="margin-top:10px;"><button class="btn small" onclick="addAllocRow('${id}','strategicAllocationRanges')">+ Add Sleeve</button></div></div>`;
+  }
+  if(p.variants){
+    html += `<h2 class="section">Risk-Profile Variants</h2><div class="card">`;
+    p.variants.forEach((v,vi)=>{
+      html += `<div style="margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+        <div class="field-row"><div class="field-label">Profile</div><input type="text" value="${escAttr(v.profile)}" onchange="updateVariantField('${id}',${vi},'profile',this.value)"></div>`;
+      if(v.allocation){
+        v.allocation.forEach((a,ai)=>{
+          html += `<div class="editable-table-row">
+            <input type="text" value="${escAttr(a.sleeve)}" onchange="updateVariantAllocField('${id}',${vi},${ai},'sleeve',this.value)">
+            <input type="text" value="${escAttr(a.range)}" onchange="updateVariantAllocField('${id}',${vi},${ai},'range',this.value)">
+            <button class="row-remove" onclick="removeVariantAllocRow('${id}',${vi},${ai})">×</button>
+          </div>`;
+        });
+        html += weightSumBadge(v.allocation);
+        html += `<div style="margin:6px 0;"><button class="btn small" onclick="addVariantAllocRow('${id}',${vi})">+ Add Sleeve to ${v.profile}</button></div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+  html += `<h2 class="section">Key Risks</h2><div class="card" id="riskEditor-${id}">`;
+  (p.keyRisks||[]).forEach((r,i)=>{
+    html += `<div class="risk-item-row"><input type="text" value="${escAttr(r)}" onchange="updateRisk('${id}',${i},this.value)"><button class="row-remove" onclick="removeRisk('${id}',${i})">×</button></div>`;
+  });
+  html += `</div>`;
+  html += `<div class="footer-note">Editing ${p.code}. Autosaves to browser local storage. Publish to snapshot a version.</div>`;
+  main.innerHTML = html;
+}
+
+function updateField(id, field, value){ getProduct(id)[field]=value; saveToLocalStorage(); }
+function updateSleeveField(id, idx, field, value){ getProduct(id).styleSleeves[idx][field]=value; saveToLocalStorage(); if(currentView==="edit") renderEdit(id); }
+function addSleeve(id){ getProduct(id).styleSleeves.push({name:"New Sleeve", weightRange:"0-0%", criteria:"", universe:"", indicativeNames:""}); saveToLocalStorage(); renderEdit(id); }
+function removeSleeve(id, idx){ getProduct(id).styleSleeves.splice(idx,1); saveToLocalStorage(); renderEdit(id); }
+function updateAllocField(id, listName, idx, field, value){ getProduct(id)[listName][idx][field]=value; saveToLocalStorage(); if(currentView==="edit") renderEdit(id); }
+function addAllocRow(id, listName){ getProduct(id)[listName].push({sleeve:"New Sleeve", range:"0-0%"}); saveToLocalStorage(); renderEdit(id); }
+function removeAllocRow(id, listName, idx){ getProduct(id)[listName].splice(idx,1); saveToLocalStorage(); renderEdit(id); }
+function updateVariantField(id, vi, field, value){ getProduct(id).variants[vi][field]=value; saveToLocalStorage(); }
+function updateVariantAllocField(id, vi, ai, field, value){ getProduct(id).variants[vi].allocation[ai][field]=value; saveToLocalStorage(); if(currentView==="edit") renderEdit(id); }
+function addVariantAllocRow(id, vi){ getProduct(id).variants[vi].allocation.push({sleeve:"New Sleeve", range:"0-0%"}); saveToLocalStorage(); renderEdit(id); }
+function removeVariantAllocRow(id, vi, ai){ getProduct(id).variants[vi].allocation.splice(ai,1); saveToLocalStorage(); renderEdit(id); }
+function updateRisk(id, idx, value){ getProduct(id).keyRisks[idx]=value; saveToLocalStorage(); }
+function addRisk(id){ if(!getProduct(id).keyRisks) getProduct(id).keyRisks=[]; getProduct(id).keyRisks.push("New risk"); saveToLocalStorage(); renderEdit(id); }
+function removeRisk(id, idx){ getProduct(id).keyRisks.splice(idx,1); saveToLocalStorage(); renderEdit(id); }
+
+function publishProduct(id){
+  const entry = getEntry(id);
+  const note = prompt("Optional note for this version:", "");
+  if(note===null) return;
+  const versionNum = entry.versions.length+1;
+  entry.versions.push({ version:versionNum, timestamp:new Date().toISOString(), note:note||"", data: JSON.parse(JSON.stringify(entry.current)) });
+  entry.status = "published";
+  saveToLocalStorage();
+  showHistory(id);
+}
+function unpublishToDraft(id){ getEntry(id).status="draft"; saveToLocalStorage(); renderNav(); showProduct(id); }
+function revertToVersion(id, versionIdx){
+  const entry = getEntry(id); const v = entry.versions[versionIdx];
+  if(!confirm(`Revert draft to v${v.version}? This overwrites current unsaved edits.`)) return;
+  entry.current = JSON.parse(JSON.stringify(v.data));
+  entry.status = "draft";
+  saveToLocalStorage();
+  showProduct(id);
+}
+
+function renderHistory(id){
+  const p = getProduct(id); const entry = getEntry(id);
+  const main = document.getElementById("main");
+  let html = `<div class="topbar"><div><h1>Version History — ${p.name}</h1><div class="topbar-sub">${entry.versions.length} version(s) · status: <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span></div></div>
+    <div class="toolbar"><button class="btn" onclick="showProduct('${id}')">← Back</button>${entry.status==="published"?`<button class="btn" onclick="unpublishToDraft('${id}')">Mark as Draft</button>`:""}</div></div>`;
+  if(!entry.versions.length){
+    html += `<div class="callout warn">No published versions yet.</div>`;
+  } else {
+    html += `<h2 class="section">Published Versions</h2><div class="card">`;
+    entry.versions.slice().reverse().forEach(v=>{
+      const idx = entry.versions.indexOf(v);
+      html += `<div class="version-row"><div><div class="vmeta">v${v.version} ${v.note?'— '+escText(v.note):''}</div><div class="vtime">${new Date(v.timestamp).toLocaleString()}</div></div>
+        <div class="toolbar">
+          ${idx>0?`<button class="btn small" onclick="showDiff('${id}',${idx-1},${idx})">Diff vs v${entry.versions[idx-1].version}</button>`:""}
+          <button class="btn small" onclick="showDiff('${id}',${idx},'current')">Diff vs Draft</button>
+          <button class="btn small" onclick="revertToVersion('${id}',${idx})">Revert to This</button>
+        </div></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `<div id="diffContainer"></div>`;
+  main.innerHTML = html;
+}
+
+const DIFF_FIELDS = ["objective","philosophy","selectionMethodology","benchmark","rebalanceFrequency","riskProfile","suitability","minInvestment","fees"];
+function fieldValueAt(o,f){ return o[f]!==undefined ? String(o[f]) : ""; }
+function diffText(a,b){
+  const aw=(a||"").split(/(\s+)/), bw=(b||"").split(/(\s+)/);
+  const m=aw.length, n=bw.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=m-1;i>=0;i--) for(let j=n-1;j>=0;j--) dp[i][j] = aw[i]===bw[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0; const out=[];
+  while(i<m && j<n){ if(aw[i]===bw[j]){out.push({t:"same",v:aw[i]});i++;j++;} else if(dp[i+1][j]>=dp[i][j+1]){out.push({t:"del",v:aw[i]});i++;} else {out.push({t:"add",v:bw[j]});j++;} }
+  while(i<m){out.push({t:"del",v:aw[i]});i++;} while(j<n){out.push({t:"add",v:bw[j]});j++;}
+  return out;
+}
+function renderDiffHtml(a,b){
+  if(a===b) return `<span class="diff-unchanged">— unchanged —</span>`;
+  return diffText(a,b).map(p=> p.t==="same"?escText(p.v) : p.t==="del"?`<span class="diff-remove">${escText(p.v)}</span>`:`<span class="diff-add">${escText(p.v)}</span>`).join("");
+}
+function showDiff(id, fromIdx, toIdx){
+  const entry = getEntry(id);
+  const fromData = entry.versions[fromIdx].data;
+  const fromLabel = "v"+entry.versions[fromIdx].version;
+  let toData, toLabel;
+  if(toIdx==="current"){ toData=entry.current; toLabel="Current Draft"; }
+  else { toData=entry.versions[toIdx].data; toLabel="v"+entry.versions[toIdx].version; }
+  let html = `<h2 class="section">Diff: ${fromLabel} → ${toLabel}</h2>`;
+  let any=false;
+  DIFF_FIELDS.forEach(f=>{
+    const a=fieldValueAt(fromData,f), b=fieldValueAt(toData,f);
+    if(a!==b) any=true;
+    html += `<div class="diff-field"><div class="df-label">${f}</div><div>${renderDiffHtml(a,b)}</div></div>`;
+  });
+  if(!any) html += `<div class="callout">No differences.</div>`;
+  document.getElementById("diffContainer").innerHTML = html;
+}
+
+// ---------- EXPORT: CSV / JSON (no SheetJS/docx available in this sandbox) ----------
+function csvEscape(v){
+  const s = String(v==null?"":v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function downloadTextFile(filename, content, mime){
+  const blob = new Blob([content], {type: mime || "text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function productToCsvRows(p, entry){
+  const rows = [["Field","Value"]];
+  rows.push(["Product ID", p.id]); rows.push(["Code", p.code]); rows.push(["Name", p.name]);
+  rows.push(["Status", entry.status]); rows.push(["Version", "v"+entry.versions.length]);
+  rows.push(["Category", p.category]); rows.push(["Objective", p.objective]);
+  rows.push(["Philosophy", p.philosophy||p.selectionMethodology||""]);
+  rows.push(["Benchmark", p.benchmark]); rows.push(["Rebalance", p.rebalanceFrequency]);
+  rows.push(["Risk Profile", p.riskProfile]); rows.push(["Suitability", p.suitability]);
+  rows.push(["Fees", p.fees||""]); rows.push(["Key Risks", (p.keyRisks||[]).join(" | ")]);
+  return rows;
+}
+function rowsToCsv(rows){ return rows.map(r=>r.map(csvEscape).join(",")).join("\n"); }
+function downloadProductCsv(id){
+  const p = getProduct(id), entry = getEntry(id);
+  downloadTextFile(`${p.code}_${p.id}_ProductNote.csv`, rowsToCsv(productToCsvRows(p, entry)), "text/csv");
+}
+function downloadProductJson(id){
+  const p = getProduct(id), entry = getEntry(id);
+  downloadTextFile(`${p.code}_${p.id}_ProductNote.json`, JSON.stringify({product:p, status:entry.status, versions:entry.versions}, null, 2), "application/json");
+}
+function downloadAllCsv(){
+  const all = getAllProducts();
+  const rows = [["ID","Code","Name","Category","Status","Version","Risk Profile","Benchmark","Rebalance Frequency","Objective"]];
+  all.forEach(p=>{
+    const entry = getEntry(p.id);
+    rows.push([p.id,p.code,p.name,p.category,entry.status,"v"+entry.versions.length,p.riskProfile,p.benchmark,p.rebalanceFrequency,p.objective]);
+  });
+  downloadTextFile("Vriksha_Product_Notes_All_Lite.csv", rowsToCsv(rows), "text/csv");
+}
+
+initState();
+initSidebarCollapse();
+renderNav();
+showView('overview');
+</script>
+</body>
+</html>

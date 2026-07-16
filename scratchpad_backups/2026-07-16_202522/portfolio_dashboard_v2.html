@@ -11,9 +11,6 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
 
@@ -241,7 +238,6 @@
 
   .editable-table-row{ display:grid; grid-template-columns:1fr 110px 110px 34px; gap:8px; margin-bottom:6px; align-items:center; }
   .editable-table-row.four{ grid-template-columns:1fr 1.4fr 90px 90px 34px; }
-  .editable-table-row.five{ grid-template-columns:1fr 1.6fr 1fr 100px 34px; }
   .row-remove{
     background:transparent; border:1px solid var(--moss); color:var(--text-faint); width:30px; height:30px;
     border-radius:2px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem;
@@ -321,103 +317,10 @@
     .main{ padding:24px 20px; }
     .field-row, .kv{ grid-template-columns:1fr; }
   }
-
-  /* ── LOGIN SCREEN ── */
-  .login-wrap{
-    min-height:100vh; display:flex; align-items:center; justify-content:center;
-    background:var(--forest); padding:24px;
-  }
-  .login-card{
-    width:100%; max-width:380px; background:var(--canopy); border:1px solid var(--moss);
-    border-radius:var(--radius); padding:36px 32px;
-  }
-  .login-brand{ margin-bottom:6px; font-family:'Syne', sans-serif; font-size:1.3rem; font-weight:700;
-    letter-spacing:.08em; text-transform:uppercase; color:var(--mist); }
-  .login-sub{ font-family:'JetBrains Mono', monospace; font-size:.66rem; color:var(--sage); letter-spacing:.04em; margin-bottom:28px; }
-  .login-field{ margin-bottom:16px; }
-  .login-label{ font-family:'JetBrains Mono', monospace; font-size:.64rem; color:var(--sage); letter-spacing:.05em; text-transform:uppercase; display:block; margin-bottom:6px; }
-  .login-error{
-    background:rgba(217,122,108,.1); border-left:3px solid var(--red); color:var(--red);
-    font-family:'JetBrains Mono', monospace; font-size:.72rem; padding:10px 14px; border-radius:2px;
-    margin-bottom:16px; line-height:1.6; display:none;
-  }
-  .login-error.show{ display:block; }
-  .login-btn{ width:100%; margin-top:6px; justify-content:center; }
-  .login-foot{ margin-top:22px; font-family:'JetBrains Mono', monospace; font-size:.62rem; color:var(--text-faint); line-height:1.8; }
-
-  /* ── LOADING / GLOBAL ERROR ── */
-  .boot-loading{
-    min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px;
-    background:var(--forest); color:var(--sage); font-family:'JetBrains Mono', monospace; font-size:.78rem; letter-spacing:.04em;
-  }
-  .boot-spinner{
-    width:26px; height:26px; border:2px solid var(--canopy); border-top-color:var(--gold); border-radius:50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  .global-error-banner{
-    background:rgba(217,122,108,.12); border-bottom:1px solid var(--red); color:var(--red);
-    font-family:'JetBrains Mono', monospace; font-size:.72rem; padding:10px 20px; line-height:1.6;
-    display:flex; justify-content:space-between; align-items:center; gap:12px;
-  }
-  .global-error-banner button{
-    background:transparent; border:1px solid var(--red); color:var(--red); border-radius:2px;
-    padding:3px 10px; cursor:pointer; font-family:'JetBrains Mono', monospace; font-size:.62rem; flex-shrink:0;
-  }
-  .sync-status{
-    font-family:'JetBrains Mono', monospace; font-size:.6rem; color:var(--text-faint); letter-spacing:.03em;
-    display:flex; align-items:center; gap:6px;
-  }
-  .sync-status .sync-dot{ width:5px; height:5px; border-radius:50%; background:var(--sage); flex-shrink:0; }
-  .user-badge{
-    font-family:'JetBrains Mono', monospace; font-size:.62rem; color:var(--text-faint);
-    padding:8px 10px; border:1px solid var(--canopy); border-radius:2px; margin-bottom:14px;
-    display:flex; justify-content:space-between; align-items:center; gap:8px; word-break:break-all;
-  }
-  .user-badge button{
-    background:transparent; border:1px solid var(--moss); color:var(--text-dim); border-radius:2px;
-    padding:4px 9px; cursor:pointer; font-family:'JetBrains Mono', monospace; font-size:.6rem; flex-shrink:0; white-space:nowrap;
-  }
-  .user-badge button:hover{ border-color:var(--red); color:var(--red); }
-  .sidebar.collapsed .user-badge{ display:none !important; }
 </style>
 </head>
 <body>
-
-<div id="bootLoading" class="boot-loading">
-  <div class="boot-spinner"></div>
-  <div>Loading Vriksha Product Note Studio…</div>
-</div>
-
-<div id="bootError" class="boot-loading" style="display:none;">
-  <div style="max-width:480px; text-align:center; display:flex; flex-direction:column; gap:14px; align-items:center;">
-    <div style="font-size:15px; font-weight:600; color:#f2b8b8;">Couldn't load the app</div>
-    <div id="bootErrorMsg" style="font-size:13px; line-height:1.6; opacity:0.85;"></div>
-    <button class="btn primary" onclick="location.reload()" style="margin-top:6px;">Retry</button>
-  </div>
-</div>
-
-<div id="loginScreen" class="login-wrap" style="display:none;">
-  <div class="login-card">
-    <div class="login-brand">Vriksha</div>
-    <div class="login-sub">// product note studio — sign in</div>
-    <div id="loginError" class="login-error"></div>
-    <form id="loginForm" onsubmit="return handleLoginSubmit(event)">
-      <div class="login-field">
-        <label class="login-label">Email</label>
-        <input type="text" id="loginEmail" autocomplete="username" placeholder="you@vriksha.example">
-      </div>
-      <div class="login-field">
-        <label class="login-label">Password</label>
-        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
-      </div>
-      <button type="submit" class="btn primary login-btn" id="loginSubmitBtn">Sign In</button>
-    </form>
-    <div class="login-foot">Accounts are created manually by an administrator. If you don't have credentials, contact whoever manages this studio.</div>
-  </div>
-</div>
-
-<div class="app" id="appRoot" style="display:none;">
+<div class="app">
   <div class="sidebar" id="appSidebar">
     <div class="sidebar-top-row">
       <div class="brand">
@@ -425,346 +328,71 @@
       </div>
       <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Collapse menu">‹</button>
     </div>
-    <div class="brand-sub">// product note studio — production</div>
-    <div class="user-badge" id="userBadge">
-      <span id="userBadgeEmail">—</span>
-      <button onclick="handleSignOut()">Sign Out</button>
-    </div>
+    <div class="brand-sub">// product note studio — v2</div>
     <input class="search-box" id="navSearch" placeholder="search products..." oninput="renderNav()">
     <div id="navList"></div>
     <div class="nav-group-title">Tools</div>
     <div class="nav-item" onclick="showView('overview')" id="nav-overview">Overview</div>
     <div class="nav-item" onclick="showView('create')" id="nav-create">+ New Product</div>
-    <div class="nav-item" onclick="showView('templates')" id="nav-templates">Manage Templates</div>
     <div class="nav-item" onclick="showView('archive')" id="nav-archive">Archived Products</div>
-    <div class="nav-item" onclick="showView('compliance')" id="nav-compliance">Compliance</div>
     <div class="nav-item" onclick="showView('csv')" id="nav-csv">CSV Constituent Upload</div>
     <div class="nav-item" onclick="showView('backup')" id="nav-backup">Backup &amp; Sync</div>
     <div class="nav-item" onclick="showView('roadmap')" id="nav-roadmap">Upgrade Roadmap</div>
   </div>
-  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
-    <div id="globalErrorBanner" class="global-error-banner" style="display:none;">
-      <span id="globalErrorText"></span>
-      <button onclick="dismissGlobalError()">Dismiss</button>
-    </div>
-    <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px; padding:10px 48px 0;">
-      <span class="sync-status"><span class="sync-dot"></span><span id="syncStatusText">not synced yet</span></span>
-      <button class="btn small" onclick="refreshFromSupabase()" title="Re-fetch all products and version history from the database">↻ Refresh</button>
-    </div>
-    <div class="main" id="main"></div>
-  </div>
+  <div class="main" id="main"></div>
 </div>
 <script>
 const BASE_PRODUCTS = [{"id":"P1","code":"DSOP","name":"Complete Discretionary Stock-Only Portfolio","shortName":"Discretionary Equity (GARP + Value + Special Situations)","category":"Discretionary — Single Asset Class (Equity)","assetClasses":["Indian Equities (direct stocks)"],"objective":"To generate long-term capital appreciation ahead of the broad market by discretionarily blending three complementary equity styles — Growth at a Reasonable Price (GARP), Value, and Special Situations — within a single concentrated stock portfolio, with the fund manager retaining full discretion over stock selection, weights, and style tilt through the cycle.","philosophy":"Pure styles are cyclical: value outperforms growth for years and then reverses; special situations are episodic and lumpy. A discretionary manager who can shift emphasis across GARP, Value, and Special Situations as the cycle turns should produce a smoother, more consistent return stream than any single style sleeve run in isolation. This product is unconstrained by a fixed sub-allocation formula — sleeve weights are a house call, reviewed at least quarterly, and disclosed after the fact.","styleSleeves":[{"name":"GARP (Growth at a Reasonable Price)","weightRange":"35–55%","criteria":"Earnings CAGR (3-yr fwd estimate) > 15%; PEG ratio < 1.5; ROE > 15%; consistent EPS upgrades over trailing 2 quarters; net debt/EBITDA < 2x.","universe":"Nifty 500 constituents, large- and mid-cap bias","indicativeNames":"Titan Company, Divi's Laboratories, Trent, Polycab India, Cholamandalam Investment & Finance"},{"name":"Value","weightRange":"25–40%","criteria":"P/E and P/B below 5-year sector median; EV/EBITDA discount to peer set; dividend yield > sector average; free cash flow positive for 3 consecutive years.","universe":"Nifty 500, cross-cap, benchmarked loosely against Nifty500 Value 50 construction logic (E/P, B/P, S/P, dividend yield composite)","indicativeNames":"Coal India, NTPC, ONGC, select PSU banks, Bharat Petroleum"},{"name":"Special Situations","weightRange":"15–25%","criteria":"Demerger/spin-off arbitrage, corporate restructuring, regulatory-driven re-rating, promoter/PE stake unlocks, turnaround post-stress (asset quality or leverage normalization), open offers/delisting-adjacent situations.","universe":"Cross-cap, event-driven, idiosyncratic — not benchmark-anchored","indicativeNames":"Post-demerger listings, PSU disinvestment candidates, companies exiting IBC/restructuring with visible earnings normalization (illustrative category, not standing recommendations)"}],"portfolioConstructionRules":{"stockCountRange":"15-25","singleStockCap":"10%","sectorCap":"30% (25% BFSI)","cashBuffer":"0-5%"},"portfolioConstruction":"15–25 stocks. Single-stock cap 10% at initiation, sector cap 30% (25% for BFSI). No derivatives, no leverage, no short positions — long-only, fully invested with cash held only for liquidity/redemption buffer (typically 0–5%).","benchmark":"Nifty 500 TRI (primary); Nifty500 Multicap 50:25:25 TRI (secondary, for cap-mix comparison)","rebalanceFrequency":"Discretionary review monthly; formal sleeve-weight and constituent rebalance quarterly, or ad hoc on trigger events (earnings shock, corporate action, stop-loss breach at −20% from entry on a single name).","riskProfile":"High","suitability":"Investors with a 5+ year horizon, high risk tolerance, and comfort with concentrated, benchmark-agnostic equity exposure. Not suitable for capital-protection mandates or horizons under 3 years.","minInvestment":"As per smallcase platform minimum (typically ₹15,000–₹50,000 depending on constituent prices); this is a model-portfolio subscription, not a SEBI-registered PMS mandate (PMS carries a ₹50 lakh regulatory minimum under SEBI (Portfolio Managers) Regulations, 2020 — not applicable here).","fees":"Subscription/performance fee as configured on the smallcase platform (to be finalized before launch) — placeholder: e.g., flat annual subscription fee, no entry load, exit load nil after platform's standard holding period.","taxNote":"Tax implications (STCG/LTCG on direct equity, no pass-through wrapper) to be detailed in a future revision. Not covered in this version of the note.","keyRisks":["Concentration risk from 15–25 stock construction","Style-timing risk — discretionary sleeve reallocation can lag or mistime cycle turns","Special-situations sleeve carries event risk (deal breaks, delayed corporate actions)","No downside hedge — fully long-only equity exposure","Liquidity risk in mid/small-cap names during stress"]},{"id":"P2","code":"DMAP","name":"Complete Discretionary Multi-Asset Portfolio","shortName":"Discretionary Multi-Asset (Equity + REITs + InvITs + ETFs)","category":"Discretionary — Multi Asset Class","assetClasses":["Indian Equities (direct stocks)","REITs","InvITs","Sectoral ETFs","Index ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs"],"objective":"To deliver risk-adjusted total return by combining the stock-only GARP+Value+Special Situations sleeve (Product 1) with listed real-asset yield instruments (REITs, InvITs) and a full ETF toolkit (index, sectoral, factor, commodity, debt/cash) under a single discretionarily-managed, all-weather mandate.","philosophy":"This is the flagship 'one portfolio does everything' product: it retains the alpha-seeking equity engine from Product 1 but wraps it with diversifiers that behave differently across the cycle — REITs and InvITs for bond-like income with equity-like inflation participation, factor and sectoral ETFs for tactical tilts without single-stock risk, commodity ETFs (principally gold) as a portfolio hedge, and debt/cash ETFs as the ballast. Allocation across the eight sleeves is fully discretionary and reviewed at least monthly against a macro/valuation dashboard (rates direction, equity valuation percentile, credit spreads, gold momentum).","strategicAllocationRanges":[{"sleeve":"Direct Equities (GARP+Value+Special Situations, per Product 1)","range":"35–55%"},{"sleeve":"Index ETFs (Nifty 50 / Next 50 / Midcap 150)","range":"5–15%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0–10%"},{"sleeve":"Factor ETFs (Momentum/Alpha/Quality/Low-Vol)","range":"5–15%"},{"sleeve":"REITs (Embassy, Mindspace, Brookfield India, Nexus Select, Knowledge Realty)","range":"5–12%"},{"sleeve":"InvITs (IndiGrid, PowerGrid InvIT, IRB InvIT, National Highways Infra Trust)","range":"5–12%"},{"sleeve":"Commodity ETFs (Gold BeES, Silver BeES)","range":"3–10%"},{"sleeve":"Debt/Cash ETFs (Liquid ETF, Bharat Bond ETF, G-Sec ETF)","range":"5–15%"}],"indicativeInstruments":{"reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust, Knowledge Realty Trust","invits":"IndiGrid Infrastructure Trust, PowerGrid Infrastructure Investment Trust, IRB InvIT Fund, National Highways Infra Trust","indexETFs":"Nippon India ETF Nifty 50 BeES, Nippon India ETF Nifty Next 50 Junior BeES, Nippon India ETF Nifty Midcap 150","sectoralETFs":"Nippon India ETF Nifty Bank BeES, Nippon India ETF Nifty IT, Nippon India ETF Nifty Pharma, Nippon India ETF Nifty India Consumption (FMCG-oriented)","factorETFs":"Nippon India ETF Nifty Alpha Low Volatility 30, ICICI Prudential Nifty Alpha Low-Volatility 30 ETF, Nifty 200 Momentum 30-linked ETFs, Nifty500 Value 50-linked ETFs","commodityETFs":"Nippon India ETF Gold BeES, Nippon India ETF Silver BeES, HDFC Silver ETF","debtCashETFs":"Bharat Bond ETF (target-maturity series), Nippon India ETF Nifty 1D Rate Liquid BeES, LIC MF Nifty 8-13yr G-Sec ETF"},"benchmark":"Custom blended benchmark: 55% Nifty 500 TRI + 15% Nifty REITs & InvITs Index + 15% Nifty 50 Arbitrage/Gold composite + 15% CRISIL Composite Bond Index (weights indicative, to be fixed at launch and disclosed in factsheet).","rebalanceFrequency":"Sleeve-level allocation reviewed monthly; full rebalance to target bands quarterly; hedge/gold sleeve can be adjusted ad hoc on volatility triggers (India VIX > 20).","riskProfile":"Moderate-High (lower than Product 1 due to REIT/InvIT/debt ballast)","suitability":"Investors wanting a single all-in-one discretionary product spanning growth, income, and inflation-hedge sleeves, 4+ year horizon, comfortable with equity-linked drawdowns of 15–25% in stress scenarios.","minInvestment":"As per smallcase platform minimum; not a SEBI PMS mandate.","fees":"To be finalized before launch — placeholder subscription-fee structure per smallcase convention.","taxNote":"Multi-instrument tax treatment (equity STCG/LTCG, REIT/InvIT distribution taxability split between interest/dividend/capital-return components, ETF capital gains) to be detailed in a future revision.","keyRisks":["REIT/InvIT distributions are not guaranteed and are sensitive to occupancy, toll traffic, and regulated tariff resets","Interest-rate sensitivity in InvIT and debt ETF sleeves","Multi-instrument complexity increases tracking and rebalancing friction/costs","Sectoral and factor ETF tilts add cyclicality risk if mistimed","Gold/silver sleeve can drag returns in strong equity bull phases"]},{"id":"P3","code":"DMAERI-RB","name":"Discretionary Multi-Asset ETF/REIT/InvIT Portfolio — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Discretionary Multi-Asset ETF/REIT/InvIT — by Risk Profile","category":"Discretionary — Multi Asset, ETF/REIT/InvIT only (no direct stocks)","assetClasses":["Index ETFs","Sectoral ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs","REITs","InvITs"],"objective":"To offer a fully liquid, exchange-traded, no-direct-stock multi-asset portfolio built entirely from ETFs, REITs, and InvITs, discretionarily allocated across three risk bands so investors can select the variant matching their risk capacity without needing a bespoke stock-picking mandate.","philosophy":"Every constituent here trades on-exchange with T+1 settlement and daily NAV/price discovery — this product exists for investors who want multi-asset diversification with maximum liquidity and minimum single-security risk (no direct equities). The three variants differ only in strategic weight bands between growth (equity ETFs/factor ETFs), income/real-asset (REITs/InvITs), and defensive (debt/cash/gold) sleeves; the instrument universe is shared.","variants":[{"profile":"Aggressive","targetInvestor":"10+ year horizon, high risk tolerance, prioritizes growth over income stability.","allocation":[{"sleeve":"Index ETFs (broad + midcap)","range":"30–40%"},{"sleeve":"Factor ETFs (Momentum/Alpha)","range":"15–20%"},{"sleeve":"Sectoral ETFs (tactical)","range":"5–10%"},{"sleeve":"REITs","range":"8–12%"},{"sleeve":"InvITs","range":"8–12%"},{"sleeve":"Commodity ETFs (Gold/Silver)","range":"3–7%"},{"sleeve":"Debt/Cash ETFs","range":"5–10%"}],"expectedEquityLikeExposure":"~75–85%"},{"profile":"Moderate","targetInvestor":"5–10 year horizon, balanced risk tolerance, wants growth with meaningful income ballast.","allocation":[{"sleeve":"Index ETFs (broad + midcap)","range":"20–28%"},{"sleeve":"Factor ETFs (Quality/Low-Vol tilt)","range":"10–15%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0–8%"},{"sleeve":"REITs","range":"10–15%"},{"sleeve":"InvITs","range":"10–15%"},{"sleeve":"Commodity ETFs (Gold/Silver)","range":"5–10%"},{"sleeve":"Debt/Cash ETFs","range":"15–25%"}],"expectedEquityLikeExposure":"~50–60%"},{"profile":"Conservative","targetInvestor":"3–5 year horizon, low risk tolerance, prioritizes capital stability and income over growth.","allocation":[{"sleeve":"Index ETFs (broad, large-cap only)","range":"8–15%"},{"sleeve":"Factor ETFs (Low-Vol only)","range":"5–8%"},{"sleeve":"Sectoral ETFs (tactical)","range":"0%"},{"sleeve":"REITs","range":"8–12%"},{"sleeve":"InvITs","range":"8–12%"},{"sleeve":"Commodity ETFs (Gold only, inflation hedge)","range":"5–10%"},{"sleeve":"Debt/Cash ETFs","range":"40–55%"}],"expectedEquityLikeExposure":"~20–30%"}],"sharedInstrumentUniverse":{"indexETFs":"Nippon India ETF Nifty 50 BeES, Nippon India ETF Nifty Next 50 Junior BeES, Nippon India ETF Nifty Midcap 150, Mirae Asset Nifty Midcap 150 ETF","sectoralETFs":"Nifty Bank, Nifty IT, Nifty Pharma, Nifty India Consumption ETFs (Nippon India ETF suite, tactical overlay only)","factorETFs":"Nippon India/ICICI Prudential Nifty Alpha Low-Volatility 30 ETF, Nifty 200 Momentum 30 and Nifty500 Value 50-linked ETFs","commodityETFs":"Nippon India ETF Gold BeES, Nippon India ETF Silver BeES","debtCashETFs":"Bharat Bond ETF (maturity-matched to horizon), Nippon India ETF Nifty 1D Rate Liquid BeES, LIC MF Nifty 8-13yr G-Sec ETF","reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust","invits":"IndiGrid Infrastructure Trust, PowerGrid InvIT, National Highways Infra Trust (Aggressive/Moderate may add IRB InvIT for higher yield/higher risk)"},"benchmark":"Aggressive: 75% Nifty 500 TRI + 25% Nifty REITs & InvITs Index. Moderate: 50% Nifty 500 TRI + 20% Nifty REITs & InvITs Index + 30% CRISIL Composite Bond Index. Conservative: 25% Nifty 500 TRI + 15% Nifty REITs & InvITs Index + 60% CRISIL Composite Bond Index.","rebalanceFrequency":"Quarterly calendar rebalance to target bands across all three variants; risk-band drift check monthly (rebalance triggered early if any sleeve breaches its band by >5 percentage points).","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors who want multi-asset diversification but prefer to avoid single-stock risk entirely, choosing the variant matched to their declared risk profile via a standard risk-assessment questionnaire.","minInvestment":"As per smallcase platform minimum for each variant.","fees":"To be finalized before launch — likely uniform subscription fee across the three variants.","taxNote":"To be detailed in a future revision (ETF capital gains, REIT/InvIT distribution component taxability).","keyRisks":["Sectoral/factor ETF tactical sleeves can whipsaw in choppy markets","REIT/InvIT sleeve concentrated in ~9 listed instruments (limited universe in India as of 2026)","Conservative variant still carries ~20-30% equity-like exposure — not a capital-guarantee product","ETF tracking error versus underlying index, especially in less liquid factor ETFs"]},{"id":"P4","code":"DMAMF-RB","name":"Discretionary Multi-Asset Mutual Fund Portfolio — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Discretionary Multi-Asset MF — by Risk Profile","category":"Discretionary — Multi Asset, Mutual Funds only","assetClasses":["Index Funds","Sector Funds","Factor/Smart-Beta Funds","Commodity Funds (Gold/Silver FoF)","Debt/Liquid Funds","REIT/InvIT-focused Funds/FoFs"],"objective":"To replicate the multi-asset diversification of Product 3 using open-ended mutual fund schemes instead of ETFs — for investors who prefer SIP/lumpsum mutual fund rails, don't have (or don't want) a demat/trading account workflow for every transaction, and are comfortable with fund-level expense ratios instead of brokerage/impact cost.","philosophy":"Mutual funds settle T+2/T+3, don't require intraday trading, and support SIPs — a meaningfully different operational profile from ETFs despite tracking similar underlying indices. This product exists as the MF-native equivalent of Product 3 for investors and distributors who operate primarily through the mutual fund ecosystem (folios, SIPs, direct plans).","variants":[{"profile":"Aggressive","allocation":[{"sleeve":"Index Funds (Nifty 50/Next 50/Midcap 150)","range":"30–40%"},{"sleeve":"Factor/Smart-beta Funds (Momentum/Alpha)","range":"15–20%"},{"sleeve":"Sector Funds (tactical)","range":"5–10%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"12–18%"},{"sleeve":"Commodity Funds (Gold/Silver FoF)","range":"3–7%"},{"sleeve":"Debt/Liquid Funds","range":"5–10%"}]},{"profile":"Moderate","allocation":[{"sleeve":"Index Funds","range":"20–28%"},{"sleeve":"Factor/Smart-beta Funds (Quality/Low-Vol)","range":"10–15%"},{"sleeve":"Sector Funds (tactical)","range":"0–8%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"15–20%"},{"sleeve":"Commodity Funds (Gold/Silver FoF)","range":"5–10%"},{"sleeve":"Debt/Liquid Funds","range":"20–30%"}]},{"profile":"Conservative","allocation":[{"sleeve":"Index Funds (large-cap only)","range":"8–15%"},{"sleeve":"Factor/Smart-beta Funds (Low-Vol only)","range":"5–8%"},{"sleeve":"Sector Funds","range":"0%"},{"sleeve":"REIT/InvIT-oriented Funds/FoFs","range":"10–15%"},{"sleeve":"Commodity Funds (Gold FoF)","range":"5–10%"},{"sleeve":"Debt/Liquid Funds","range":"45–60%"}]}],"indicativeInstruments":{"indexFunds":"Motilal Oswal / Nippon India / ICICI Pru / SBI / UTI Nifty 50, Nifty Next 50 and Nifty Midcap 150 Index Funds (direct plan)","factorFunds":"Nippon India Nifty Alpha Low Volatility 30 Index Fund, Edelweiss Nifty Alpha Low Vol 30 Index Fund, index funds tracking Nifty 200 Momentum 30 / Nifty500 Value 50","sectorFunds":"Banking & Financial Services, Technology, Pharma & Healthcare, and Consumption sector/thematic funds (house-approved list, tactical only)","commodityFunds":"Gold ETF Fund-of-Funds and Silver ETF FoF structures (e.g., Nippon India / ICICI Prudential / Kotak Gold Savings Fund) for investors without demat access","debtLiquidFunds":"Liquid funds, ultra-short duration funds, target-maturity debt index funds (Bharat Bond FoF variants)","reitInvitExposure":"Where a direct REIT/InvIT mutual fund wrapper is unavailable, exposure taken via hybrid/allocation funds with disclosed REIT/InvIT holdings, or via direct REIT/InvIT units held in the same folio-linked demat account where the platform supports it."},"benchmark":"Same blended benchmarks as Product 3, substituting TRI index values (fund performance measured pre-expense-ratio drag against index TRI).","rebalanceFrequency":"Quarterly rebalance; fund selection (scheme-level, not just category-level) reviewed semi-annually for expense ratio, tracking error, and fund manager continuity.","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors preferring the mutual fund operational rail (SIP, no demat dependency for every leg) over direct ETF trading, matched to declared risk profile.","minInvestment":"As per smallcase platform / SIP minimum per fund (typically ₹500–₹5,000 per fund per month for SIP mode).","fees":"To be finalized before launch. Note: underlying fund expense ratios apply in addition to any platform subscription fee — this is structurally different from the ETF variant and should be disclosed prominently.","taxNote":"To be detailed in a future revision (equity fund vs debt fund taxation post the 2023 debt fund indexation changes, FoF taxation treated as debt-fund-equivalent for gold/silver FoFs).","keyRisks":["Double-layer cost: platform fee plus underlying fund expense ratio","Tracking error varies meaningfully by AMC — scheme selection matters as much as category allocation","Limited direct REIT/InvIT mutual fund wrappers in India as of 2026 — this sleeve is structurally weaker via MF route than via direct ETF/unit route","SIP-based averaging can lag lumpsum discretionary timing in strong trending markets"]},{"id":"P5","code":"DMAERI-GOAL","name":"Discretionary Multi-Asset ETF/REIT/InvIT Portfolio — by Life Goal × Risk Profile","shortName":"Discretionary Multi-Asset ETF/REIT/InvIT — Goal-Based","category":"Discretionary — Multi Asset, ETF/REIT/InvIT, Goal-Based","assetClasses":["Index ETFs","Sectoral ETFs","Factor ETFs","Commodity ETFs","Debt/Cash ETFs","REITs","InvITs"],"objective":"To map the Product 3 ETF/REIT/InvIT universe onto specific life goals — retirement, child's education, home down-payment, wealth accumulation — by combining goal time horizon with the investor's risk profile, using a glide-path approach that de-risks automatically as the goal date approaches.","philosophy":"Risk profile alone is incomplete without a time horizon anchor. A 28-year-old saving for retirement in 30 years and a 55-year-old saving for retirement in 3 years may both call themselves 'moderate risk' but need very different portfolios. This product cross-tabulates goal horizon (which sets the glide path) with declared risk tolerance (which sets the glide path's starting aggressiveness and floor), using the same ETF/REIT/InvIT universe as Product 3.","goalFramework":[{"goal":"Retirement (long horizon, 15+ years)","horizonBand":"15+ years to goal","glidePath":"Starts at Aggressive-equivalent allocation (per Product 3), holds until T-10 years, then linearly de-risks toward Conservative-equivalent by the goal date, increasing debt/cash and REIT/InvIT income sleeves at the expense of factor/sectoral ETFs.","riskProfileAdjustment":"Aggressive investor: stays at upper equity band longer (to T-7yrs). Conservative investor: begins de-risking earlier (from T-15yrs)."},{"goal":"Child's Education","horizonBand":"5–18 years to goal (goal date is largely fixed/inflexible)","glidePath":"Because the goal date cannot be deferred like retirement, de-risking is more front-loaded — glide begins at T-7 years regardless of risk profile, reaching a Conservative-equivalent allocation by T-2 years to avoid sequence-of-returns risk right before the expense hits.","riskProfileAdjustment":"Adjusts only the starting aggressiveness and pace of glide, not the requirement to be near-fully de-risked by T-1 year."},{"goal":"Home Down-Payment","horizonBand":"2–7 years to goal","glidePath":"Short-horizon goal — starts materially more conservative than retirement/education goals even for Aggressive-risk investors, capped at Moderate-equivalent allocation maximum, with REIT/InvIT and debt/cash sleeves elevated throughout given limited time to recover from a drawdown.","riskProfileAdjustment":"Aggressive investor at 6–7yr horizon may use Moderate-equivalent band; Conservative investor at <3yr horizon should be routed to Product 3's Conservative variant directly rather than this goal wrapper."},{"goal":"General Wealth Accumulation (no fixed date)","horizonBand":"Open-ended, reviewed annually","glidePath":"No mandatory glide path — allocation stays at the risk-profile-matched static band from Product 3 (Aggressive/Moderate/Conservative) until the investor declares a new goal or horizon.","riskProfileAdjustment":"Directly inherits the relevant Product 3 variant with no time-based modification."}],"portfolioConstructionNote":"Underlying instrument universe, sleeve definitions, and base allocation bands are identical to Product 3. This product's differentiation is entirely in the glide-path overlay logic layered on top of the risk-profile bands — it does not introduce new instruments.","benchmark":"Dynamic — benchmark blend shifts along the same glide path as the portfolio (e.g., retirement goal benchmark starts at Product 3's Aggressive benchmark and migrates toward the Conservative benchmark by goal date).","rebalanceFrequency":"Quarterly tactical rebalance within the current glide-path band; glide-path band itself steps down annually (or per the goal-specific schedule above) rather than continuously.","riskProfile":"Time-varying by design — starts at investor's risk-profile-matched level and mechanically reduces as goal date approaches.","suitability":"Investors with a specific, named financial goal and target date who want the portfolio to automatically de-risk rather than requiring manual rebalancing decisions as the goal nears.","minInvestment":"As per smallcase platform minimum; goal-tracking may require minimum SIP commitment to be meaningful (to be defined at launch).","fees":"To be finalized before launch.","taxNote":"To be detailed in a future revision.","keyRisks":["Glide-path de-risking is calendar/time-based, not market-condition-based — it will de-risk on schedule even mid-rally or mid-selloff","Fixed-date goals (education, home) are the least forgiving of a market drawdown near the goal date despite the glide path's intent to reduce that risk","Requires accurate, honest goal-horizon input from the investor at setup — misstated horizon undermines the entire framework","Same underlying instrument risks as Product 3 (REIT/InvIT distribution variability, ETF tracking error, sectoral tilts)"]},{"id":"P6","code":"DMAMF-GOAL","name":"Discretionary Multi-Asset Mutual Fund Portfolio — by Life Goal × Risk Profile","shortName":"Discretionary Multi-Asset MF — Goal-Based","category":"Discretionary — Multi Asset, Mutual Funds, Goal-Based","assetClasses":["Index Funds","Sector Funds","Factor/Smart-Beta Funds","Commodity Funds","Debt/Liquid Funds","REIT/InvIT-exposed Funds"],"objective":"The mutual-fund-native equivalent of Product 5 — applies the same goal × risk-profile glide-path framework to the Product 4 mutual fund universe, for investors who want goal-based investing through SIP-friendly mutual fund rails rather than ETF trading.","philosophy":"Same rationale as Product 5, translated to the mutual fund operational rail described in Product 4. The glide-path logic (time-based de-risking, goal-specific pacing for fixed-date vs open-ended goals) is identical; only the instrument wrapper changes from ETF/REIT/InvIT units to open-ended mutual fund schemes and FoFs.","goalFramework":[{"goal":"Retirement (long horizon, 15+ years)","horizonBand":"15+ years to goal","glidePath":"Identical structure to Product 5's retirement glide path, applied to Product 4's Aggressive→Conservative fund bands. SIP-based accumulation makes this goal particularly well-suited to the MF rail given rupee-cost-averaging over a multi-decade horizon.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"Child's Education","horizonBand":"5–18 years to goal","glidePath":"Same front-loaded de-risking schedule as Product 5 (glide begins T-7 years, near-fully de-risked by T-1 year), using Product 4's mutual fund sleeves.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"Home Down-Payment","horizonBand":"2–7 years to goal","glidePath":"Same short-horizon conservative cap as Product 5; MF route may be preferred here for investors without a demat account or who want to redeem via a single fund-house transaction near the goal date rather than selling multiple ETF/REIT/InvIT positions on-exchange.","riskProfileAdjustment":"Same logic as Product 5."},{"goal":"General Wealth Accumulation","horizonBand":"Open-ended","glidePath":"Inherits the relevant Product 4 static risk-profile band with no time-based modification.","riskProfileAdjustment":"Direct inheritance, as in Product 5."}],"portfolioConstructionNote":"Underlying instrument universe and base allocation bands identical to Product 4. Differentiation is the glide-path overlay only.","benchmark":"Dynamic — same glide-path benchmark logic as Product 5, using Product 4's underlying blended benchmarks.","rebalanceFrequency":"Quarterly within-band rebalance; annual (or goal-specific) glide-path step-down; scheme-level review semi-annually per Product 4.","riskProfile":"Time-varying by design, per goal and declared risk profile.","suitability":"Investors with a named goal and target date who prefer the mutual fund/SIP operational rail over ETF trading.","minInvestment":"As per SIP/lumpsum minimums per underlying fund.","fees":"To be finalized before launch; underlying fund expense ratios apply in addition to platform fee (see Product 4 note).","taxNote":"To be detailed in a future revision.","keyRisks":["Same glide-path timing risks as Product 5","Same double-layer cost and tracking error considerations as Product 4","Weaker direct REIT/InvIT wrapper availability via MF route (see Product 4) may cause this goal-based variant to under-deliver the income/real-asset sleeve versus the ETF equivalent (Product 5) for income-sensitive goals like retirement"]},{"id":"P7","code":"SSFP-RB","name":"Systematic Stock Factor Portfolios — Risk-Profiled (Aggressive/Moderate/Conservative)","shortName":"Systematic Factor Equity — by Risk Profile","category":"Systematic — Single Asset Class (Equity, Rules-Based)","assetClasses":["Indian Equities (direct stocks, factor-screened)"],"objective":"To deliver factor-premia-driven equity returns through a fully rules-based, systematic (non-discretionary) stock selection process, offered in three variants that differ in factor mix and cap-segment exposure to match Aggressive, Moderate, and Conservative risk appetites — in contrast to Products 1–6, which are discretionarily managed.","philosophy":"This product family removes manager discretion from security selection entirely. Stocks are ranked and selected purely by quantitative factor scores (momentum, quality, value, low-volatility, alpha) recomputed on a fixed schedule, following the same construction logic NSE uses for its official strategy indices (Nifty200 Momentum 30, Nifty200 Quality 30, Nifty500 Value 50, Nifty Alpha Low-Volatility 30, and their multi-factor combinations). The only 'discretionary' element is the initial choice of which factor blend and risk band an investor is placed in — thereafter the portfolio rebalances mechanically.","variants":[{"profile":"Aggressive","factorMix":"60% Momentum, 25% Alpha, 15% Quality","universe":"Nifty 200 (large + mid-cap)","stockCount":"25–30","rationale":"Momentum and alpha factors have historically shown the highest returns but also the highest turnover and drawdown risk — appropriate only for high risk tolerance.","referenceIndex":"Nifty 200 Momentum 30 / Nifty Alpha 50 construction logic"},{"profile":"Moderate","factorMix":"35% Quality, 30% Alpha, 20% Low-Volatility, 15% Momentum","universe":"Nifty 200","stockCount":"30","rationale":"Blending quality and low-volatility with alpha/momentum dampens drawdowns while retaining meaningful factor premia capture — the NSE 'Alpha Quality Low-Volatility 30' style blend.","referenceIndex":"Nifty Alpha Quality Low-Volatility 30 construction logic"},{"profile":"Conservative","factorMix":"40% Low-Volatility, 30% Quality, 30% Value","universe":"Nifty 100 (large-cap only)","stockCount":"30","rationale":"Prioritizes capital stability — low-volatility and quality factors have historically delivered the smallest drawdowns of any single-factor strategy, at some cost to upside capture in strong bull phases.","referenceIndex":"Nifty100 Quality 30 / Nifty100 Low Volatility 30 construction logic"}],"selectionMethodology":"Factor scores computed quarterly using trailing 12-month price momentum (for momentum), 5-year ROE/leverage/earnings-variability composite (for quality), E/P-B/P-S/P-dividend yield composite (for value), and trailing volatility/beta (for low-volatility), following NSE Indices' published methodology for equivalent strategy indices. Stocks ranked, top N selected per variant, weighted by factor score (not equal-weight, not free-float market cap) subject to a single-stock cap of 8% and sector cap of 30%.","benchmark":"Aggressive: Nifty 200 Momentum 30 TRI. Moderate: Nifty Alpha Quality Low-Volatility 30 TRI. Conservative: Nifty100 Low Volatility 30 TRI / Nifty100 Quality 30 TRI blend.","rebalanceFrequency":"Quarterly, calendar-scheduled (aligned to NSE Indices' own quarterly review cycle for comparability), fully mechanical — no ad hoc discretionary rebalancing outside the schedule except for corporate actions (delisting, M&A) requiring an immediate substitution.","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate-High, Conservative = Moderate","suitability":"Investors who prefer rules-based, emotion-free systematic exposure over discretionary stock-picking, and who understand factor investing can underperform the broad market for extended periods (factor drawdowns/'crowding' cycles).","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — systematic products typically command a lower fee than discretionary products given the absence of active management; to be reflected in final pricing.","taxNote":"To be detailed in a future revision.","keyRisks":["Factor premia are cyclical and can underperform market-cap-weighted benchmarks for multi-year stretches (e.g., value underperformed growth for most of 2018–2020 in India)","Mechanical rebalancing does not adapt to fundamental red flags between scheduled reviews unless a corporate-action trigger fires","Higher portfolio turnover (especially Aggressive/momentum variant) increases transaction costs and short-term capital gains incidence","Factor crowding risk — as factor investing has grown, some premia have compressed versus historical backtests"]},{"id":"P8","code":"SSF-REIG-RB","name":"Systematic Stock Factor + REITs + InvIT + Gold + Cash Portfolios — Risk-Profiled","shortName":"Systematic Factor + Real Assets + Gold + Cash — by Risk Profile","category":"Systematic — Multi Asset (Factor Equity + Real Assets + Gold + Cash)","assetClasses":["Factor-screened Indian Equities","REITs","InvITs","Gold (ETF)","Cash/Debt ETF"],"objective":"To wrap the systematic factor equity engine from Product 7 with a fixed-rules multi-asset overlay — REITs and InvITs for income/real-asset diversification, gold for inflation/tail-risk hedging, and cash/debt for stability — with all sleeve weights determined by a fixed rules-based allocation table per risk band rather than manager discretion.","philosophy":"This is the systematic (rules-based) counterpart to Product 2's discretionary multi-asset approach, but deliberately narrower in instrument scope: only REITs, InvITs, gold, and cash are added to the factor equity core — no sectoral tilts, no factor ETF layering, no special situations. The narrower, fixed universe keeps the entire product mechanically rebalanceable without judgment calls, which is the point of a 'systematic' offering.","variants":[{"profile":"Aggressive","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Aggressive variant)","range":"70–80%"},{"sleeve":"REITs (equal-weighted across eligible names)","range":"5–8%"},{"sleeve":"InvITs (equal-weighted across eligible names)","range":"5–8%"},{"sleeve":"Gold ETF","range":"3–7%"},{"sleeve":"Cash/Debt ETF","range":"3–7%"}]},{"profile":"Moderate","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Moderate variant)","range":"50–60%"},{"sleeve":"REITs (equal-weighted)","range":"8–12%"},{"sleeve":"InvITs (equal-weighted)","range":"8–12%"},{"sleeve":"Gold ETF","range":"5–10%"},{"sleeve":"Cash/Debt ETF","range":"10–20%"}]},{"profile":"Conservative","allocation":[{"sleeve":"Systematic Factor Equity (Product 7 Conservative variant)","range":"25–35%"},{"sleeve":"REITs (equal-weighted)","range":"8–12%"},{"sleeve":"InvITs (equal-weighted)","range":"8–12%"},{"sleeve":"Gold ETF","range":"8–15%"},{"sleeve":"Cash/Debt ETF","range":"30–45%"}]}],"indicativeInstruments":{"equity":"Per Product 7's variant-matched factor screen","reits":"Embassy Office Parks REIT, Mindspace Business Parks REIT, Brookfield India Real Estate Trust, Nexus Select Trust (equal-weighted, rebalanced quarterly; no discretionary over/underweighting)","invits":"IndiGrid Infrastructure Trust, PowerGrid InvIT, National Highways Infra Trust (equal-weighted; IRB InvIT included only in Aggressive variant given its higher yield/higher volatility profile)","gold":"Nippon India ETF Gold BeES (or lowest-tracking-error, highest-AUM gold ETF at each rebalance date per a fixed selection rule)","cashDebt":"Nippon India ETF Nifty 1D Rate Liquid BeES for the cash sleeve; Bharat Bond ETF (maturity nearest to a 3-year constant-maturity target) for the debt sleeve"},"selectionMethodology":"Equity sleeve: identical mechanical factor process as Product 7. REIT/InvIT sleeves: equal-weight across all SEBI-listed, exchange-traded REITs/InvITs meeting a minimum free-float market cap and 6-month average daily traded value threshold (fixed rule, reviewed annually for universe additions as new REITs/InvITs list). Gold/cash sleeves: single-instrument or rules-based instrument selection, no discretion.","benchmark":"Aggressive: 75% Nifty200 Momentum 30 TRI + 15% Nifty REITs & InvITs Index + 10% Domestic Gold Price. Moderate: 55% factor-blend TRI + 20% Nifty REITs & InvITs Index + 10% Gold + 15% CRISIL Liquid Fund Index. Conservative: 30% factor-blend TRI + 20% Nifty REITs & InvITs Index + 12% Gold + 38% CRISIL Composite Bond Index.","rebalanceFrequency":"Quarterly, fully calendar-scheduled and mechanical across all sleeves — no discretionary intra-quarter changes except corporate-action-driven substitutions (delisting, merger).","riskProfile":"Variant-dependent: Aggressive = High, Moderate = Moderate, Conservative = Low-Moderate","suitability":"Investors wanting the diversification benefit of Product 2 but delivered through a fully rules-based, lower-discretion process with a narrower, simpler instrument set.","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — expected to price below the fully discretionary Product 2 given the systematic/rules-based construction.","taxNote":"To be detailed in a future revision.","keyRisks":["Equal-weight REIT/InvIT construction does not distinguish between stronger and weaker underlying real-asset fundamentals — a fixed rule, not a credit judgment","Same factor cyclicality risk as Product 7 in the equity sleeve","Gold sleeve is a single-instrument concentration (no diversification across gold ETF providers by design, for simplicity)","Narrower instrument universe than Product 2 means less flexibility to respond to emerging opportunities (e.g., a new REIT listing enters only at the next scheduled review)"]},{"id":"P9","code":"SSF-REIG-GOAL","name":"Systematic Stock Factor + REITs + InvIT + Gold + Cash Portfolios — by Life Goal × Risk Profile","shortName":"Systematic Factor + Real Assets + Gold + Cash — Goal-Based","category":"Systematic — Multi Asset, Goal-Based","assetClasses":["Factor-screened Indian Equities","REITs","InvITs","Gold (ETF)","Cash/Debt ETF"],"objective":"To apply the same goal × risk-profile glide-path framework used in Products 5 and 6 to the fully systematic, rules-based Product 8 universe — giving investors a mechanical, non-discretionary, goal-aware portfolio that de-risks on a fixed schedule as the goal date approaches.","philosophy":"This is the most 'rules on rules' product in the suite: the equity sleeve is factor-systematic (Product 7 logic), the multi-asset overlay is fixed-allocation systematic (Product 8 logic), and the goal adaptation is a scheduled glide path (Products 5/6 logic) rather than discretionary judgment. Every allocation decision in this product — security selection, sleeve weight, and time-based de-risking — follows a pre-published rule, leaving no discretionary decision points after initial goal/risk-profile classification.","goalFramework":[{"goal":"Retirement (15+ years)","horizonBand":"15+ years to goal","glidePath":"Starts at Product 8's Aggressive variant, holds until T-10 years, then steps down annually through Moderate toward Conservative by the goal date — identical step-down calendar logic to Product 5/6, applied to Product 8's fixed sleeve weights at each step."},{"goal":"Child's Education (5–18 years)","horizonBand":"5–18 years to goal","glidePath":"Front-loaded de-risking from T-7 years to near-fully Conservative by T-1 year, per the Product 5/6 education schedule, using Product 8's mechanical sleeve construction at each step."},{"goal":"Home Down-Payment (2–7 years)","horizonBand":"2–7 years to goal","glidePath":"Capped at Moderate-equivalent even for Aggressive-risk investors beyond a 6-year horizon; below 3 years, investor is routed directly to Product 8's Conservative variant rather than a goal-wrapped glide."},{"goal":"General Wealth Accumulation","horizonBand":"Open-ended","glidePath":"Static allocation at the investor's declared risk-profile-matched Product 8 variant; no time-based step-down."}],"portfolioConstructionNote":"No new instruments or selection rules are introduced versus Product 8 — this product only adds the fixed, calendar-based glide-path step-down schedule. All equity factor screening, REIT/InvIT equal-weighting, and gold/cash instrument selection rules are inherited unchanged from Products 7 and 8.","benchmark":"Dynamic, glide-path-matched blend of Product 8's three variant benchmarks, stepping down on the same schedule as the portfolio.","rebalanceFrequency":"Quarterly mechanical rebalance within the current glide-path step; annual (or goal-specific) step-down per the schedule above — both fully calendar-driven, no discretionary triggers.","riskProfile":"Time-varying by design, mechanically determined by goal horizon and declared risk profile — the least discretionary product in the entire suite.","suitability":"Investors who want maximum rules-based transparency and minimum manager discretion in a goal-based multi-asset product — e.g., investors who specifically want to avoid manager judgment calls at every level of the portfolio.","minInvestment":"As per smallcase platform minimum.","fees":"To be finalized before launch — expected to be the lowest-cost product in the suite given full systematic construction at both the security-selection and glide-path level.","taxNote":"To be detailed in a future revision.","keyRisks":["Same glide-path timing risk as Products 5/6 — de-risks on schedule regardless of market conditions","Same factor cyclicality and equal-weight REIT/InvIT construction risks as Products 7/8","Zero discretionary override means the product cannot deviate from its rules even if a manager would judge deviation prudent (e.g., an obviously deteriorating REIT sponsor) — by design, but worth flagging explicitly to investors as a trade-off, not an oversight"]}];
 // ============================================================================
 // Vriksha Product Note Studio — Application Logic
-// Persistence: Supabase (Postgres + Auth). Auth-gated; no localStorage app data.
+// Persistence: localStorage (auto) + manual JSON snapshot export/import (backup)
 // ============================================================================
 
-const SUPABASE_URL = "https://djrzjwhqzenykzfuzfhj.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_YMEOr-QkwD2tlkRsWQEYxg_1dSm2ygB";
-
-// Guarded client creation: if the Supabase CDN script failed to load (ad-blocker,
-// firewall, offline, CDN outage), window.supabase is undefined and calling
-// .createClient on it would throw synchronously, silently halting every line of
-// script below it — including the auth listener that's supposed to dismiss the
-// boot spinner. Catch that here and show a real error instead of an infinite spinner.
-//
-// NOTE: the UMD build of @supabase/supabase-js exposes its library namespace as
-// window.supabase (containing .createClient). Our app-level client instance must
-// NOT be named `supabase` at top-level script scope, because a top-level
-// `let`/`const supabase` collides with that existing global identifier and throws
-// "Identifier 'supabase' has already been declared" -- a parse-time SyntaxError
-// that kills the entire script before anything (including this try/catch) runs.
-// Renamed to `sb` to avoid the collision entirely.
-let sb = null;
-let supabaseInitError = null;
-try {
-  if (typeof window.supabase === "undefined" || !window.supabase || typeof window.supabase.createClient !== "function") {
-    throw new Error("Supabase client library did not load from the CDN (cdn.jsdelivr.net). This is usually an ad-blocker, corporate firewall, or network issue blocking that domain.");
-  }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} catch (err) {
-  supabaseInitError = err;
-  console.error("Supabase init failed:", err);
-}
+const STORAGE_KEY = "vriksha_pns_state_v1";
 
 // ---------- STATE ----------
 // state.products[id] = { current: {...editableFields}, status: 'draft'|'published', archived: bool, versions: [{...snapshot, meta}] }
-// Shape is identical to the localStorage-era version so every render/edit function below is unchanged.
-let state = { products: {}, templates: {}, holdings: {}, complianceChecks: {}, lastSaved: null };
-let currentUser = null; // { id, email }
+let state = { products: {}, lastSaved: null };
 
-// ---------- AUTH ----------
-function showLoginScreen(errorMsg){
-  document.getElementById("bootLoading").style.display = "none";
-  document.getElementById("appRoot").style.display = "none";
-  document.getElementById("loginScreen").style.display = "flex";
-  const errEl = document.getElementById("loginError");
-  if(errorMsg){
-    errEl.textContent = errorMsg;
-    errEl.classList.add("show");
-  } else {
-    errEl.textContent = "";
-    errEl.classList.remove("show");
-  }
-}
-
-function showAppScreen(){
-  document.getElementById("bootLoading").style.display = "none";
-  document.getElementById("loginScreen").style.display = "none";
-  document.getElementById("appRoot").style.display = "flex";
-  const badge = document.getElementById("userBadgeEmail");
-  if(badge) badge.textContent = currentUser ? currentUser.email : "—";
-}
-
-async function handleLoginSubmit(evt){
-  evt.preventDefault();
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-  const btn = document.getElementById("loginSubmitBtn");
-  const errEl = document.getElementById("loginError");
-  errEl.classList.remove("show");
-  if(!email || !password){
-    errEl.textContent = "Enter both email and password.";
-    errEl.classList.add("show");
-    return false;
-  }
-  btn.disabled = true;
-  btn.textContent = "Signing in…";
-  try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      errEl.textContent = error.message || "Invalid email or password.";
-      errEl.classList.add("show");
-      return false;
-    }
-    // onAuthStateChange will pick up the new session and boot the app.
-  } catch(err){
-    errEl.textContent = "Sign-in failed: " + (err && err.message ? err.message : err);
-    errEl.classList.add("show");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Sign In";
-  }
-  return false;
-}
-
-async function handleSignOut(){
-  if(!confirm("Sign out of Vriksha Product Note Studio?")) return;
-  try {
-    await sb.auth.signOut();
-  } catch(err){
-    console.warn("signOut failed", err);
-  }
-  // onAuthStateChange handles the screen swap back to login.
-}
-
-// ---------- GLOBAL ERROR BANNER ----------
-function showGlobalError(msg){
-  const banner = document.getElementById("globalErrorBanner");
-  const text = document.getElementById("globalErrorText");
-  if(!banner || !text) { console.error(msg); return; }
-  text.textContent = msg;
-  banner.style.display = "flex";
-}
-function dismissGlobalError(){
-  const banner = document.getElementById("globalErrorBanner");
-  if(banner) banner.style.display = "none";
-}
-
-// ---------- SUPABASE DATA LAYER ----------
-// Loads every product row + every version row (two queries total) and assembles
-// them into the same state.products[id] = {current, status, archived, versions}
-// shape the rest of the app already expects.
-async function loadAllFromSupabase(){
-  const { data: productRows, error: prodErr } = await sb
-    .from('products')
-    .select('*');
-  if(prodErr) throw new Error("Failed to load products: " + prodErr.message);
-
-  const { data: versionRows, error: verErr } = await sb
-    .from('product_versions')
-    .select('*')
-    .order('version_number', { ascending: true });
-  if(verErr) throw new Error("Failed to load version history: " + verErr.message);
-
-  // Templates live in their own table, deliberately isolated from `products` so the
-  // normal product edit/archive/delete code paths never touch them. A failure here
-  // shouldn't block the whole app from loading — templates only matter on the Create
-  // and Manage Templates screens — so this is soft-failed with a console warning and
-  // a visible (but non-blocking) banner, rather than thrown.
-  let templateRows = [];
-  try {
-    const { data: tRows, error: tErr } = await sb
-      .from('templates')
-      .select('*');
-    if(tErr) throw tErr;
-    templateRows = tRows || [];
-  } catch(err){
-    console.error("Failed to load templates:", err);
-    showGlobalError("Could not load archetype templates: " + err.message + " — Create New Product and Manage Templates may be incomplete until this clears.");
-  }
-
-  const versionsByProduct = {};
-  (versionRows || []).forEach(v=>{
-    if(!versionsByProduct[v.product_id]) versionsByProduct[v.product_id] = [];
-    versionsByProduct[v.product_id].push({
-      version: v.version_number,
-      timestamp: v.created_at,
-      note: v.note || "",
-      data: v.data
+function initState() {
+  const saved = loadFromLocalStorage();
+  if (saved) {
+    state = saved;
+    // migrate older snapshots that predate the `archived` flag
+    Object.values(state.products).forEach(entry => {
+      if (entry.archived === undefined) entry.archived = false;
     });
-  });
-
-  const newProducts = {};
-  (productRows || []).forEach(row=>{
-    // regulatory_regime is a real DB column (drives compliance-check scoping — see
-    // ARCHITECTURE.md §2.4) but the editor works off the `data` blob, so it's mirrored
-    // onto data.regulatoryRegime here and mirrored back on every persist below.
-    const current = row.data;
-    current.regulatoryRegime = row.regulatory_regime || "india_sebi";
-    newProducts[row.id] = {
-      current,
-      status: row.status,
-      archived: !!row.archived,
-      versions: versionsByProduct[row.id] || []
+    return;
+  }
+  // bootstrap from BASE_PRODUCTS (static seed data)
+  BASE_PRODUCTS.forEach(p => {
+    state.products[p.id] = {
+      current: JSON.parse(JSON.stringify(p)),
+      status: "draft",
+      archived: false,
+      versions: []
     };
   });
-  state.products = newProducts;
+  saveToLocalStorage();
+}
 
-  const newTemplates = {};
-  templateRows.forEach(row=>{
-    newTemplates[row.id] = {
-      id: row.id,
-      name: row.name,
-      description: row.description || "",
-      archetype: row.archetype,
-      data: row.data
-    };
-  });
-  state.templates = newTemplates;
-
-  // Holdings: current/live constituent list per product. Soft-fail like templates —
-  // holdings only matter on the Compliance screen, shouldn't block the whole app.
-  let holdingRows = [];
+function saveToLocalStorage() {
   try {
-    const { data: hRows, error: hErr } = await sb.from('portfolio_holdings').select('*');
-    if(hErr) throw hErr;
-    holdingRows = hRows || [];
-  } catch(err){
-    console.error("Failed to load portfolio holdings:", err);
-    showGlobalError("Could not load portfolio holdings: " + err.message + " — the Compliance screen may be incomplete until this clears.");
-  }
-  const newHoldings = {};
-  holdingRows.forEach(row=>{
-    if(!newHoldings[row.product_id]) newHoldings[row.product_id] = [];
-    newHoldings[row.product_id].push(row);
-  });
-  state.holdings = newHoldings;
-
-  // Compliance check history: most recent check per product is what gates Publish.
-  let historyRows = [];
-  try {
-    const { data: cRows, error: cErr } = await sb.from('portfolio_holdings_history')
-      .select('*')
-      .order('rebalance_number', { ascending: true });
-    if(cErr) throw cErr;
-    historyRows = cRows || [];
-  } catch(err){
-    console.error("Failed to load compliance check history:", err);
-    showGlobalError("Could not load compliance check history: " + err.message + " — Publish gating may not reflect the latest check until this clears.");
-  }
-  const newChecks = {};
-  historyRows.forEach(row=>{
-    if(!newChecks[row.product_id]) newChecks[row.product_id] = [];
-    newChecks[row.product_id].push(row);
-  });
-  state.complianceChecks = newChecks;
-
-  state.lastSaved = new Date().toISOString();
-}
-
-function getHoldings(productId){ return state.holdings[productId] || []; }
-function getComplianceHistory(productId){ return state.complianceChecks[productId] || []; }
-function getLastComplianceCheck(productId){
-  const hist = getComplianceHistory(productId);
-  return hist.length ? hist[hist.length-1] : null;
-}
-
-function getAllTemplates(){
-  return Object.keys(state.templates)
-    .map(id => state.templates[id])
-    .sort((a,b)=> a.name.localeCompare(b.name));
-}
-function getTemplate(id){ return state.templates[id]; }
-
-async function refreshFromSupabase(){
-  try {
-    await loadAllFromSupabase();
-    dismissGlobalError();
-    renderNav();
-    // Re-render whatever the user is currently looking at so a refresh is visibly useful.
-    if(currentView==="overview") renderOverview();
-    else if(currentView==="product" && currentProductId) renderProduct(currentProductId);
-    else if(currentView==="edit" && currentProductId) renderEdit(currentProductId);
-    else if(currentView==="history" && currentProductId) renderHistory(currentProductId);
-    else if(currentView==="archive") renderArchiveView();
-    else if(currentView==="create") renderCreateView();
-    else if(currentView==="templates") renderTemplatesView();
-    else if(currentView==="compliance") renderComplianceOverview();
-    else if(currentView==="productCompliance" && currentProductId) renderProductCompliance(currentProductId);
-    updateSyncStatus();
-  } catch(err){
-    showGlobalError("Refresh failed: " + err.message);
-  }
-}
-
-function updateSyncStatus(){
-  const el = document.getElementById("syncStatusText");
-  if(!el) return;
-  const t = state.lastSaved ? new Date(state.lastSaved) : null;
-  el.textContent = t ? ("last synced " + t.toLocaleTimeString()) : "not synced yet";
-}
-
-// Persists a product's full `data` blob (+ status) back to Supabase. Called after
-// every field-level edit — the existing editor already only fires on change/blur,
-// not per-keystroke, so this fires at the same cadence the localStorage version did.
-async function persistProduct(id){
-  const entry = state.products[id];
-  if(!entry) return;
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { error } = await sb
-      .from('products')
-      .update({
-        data: entry.current,
-        status: entry.status,
-        archived: entry.archived,
-        code: entry.current.code,
-        name: entry.current.name,
-        short_name: entry.current.shortName || null,
-        category: entry.current.category,
-        regulatory_regime: entry.current.regulatoryRegime || "india_sebi",
-        updated_by: uid
-      })
-      .eq('id', id);
-    if(error) throw error;
     state.lastSaved = new Date().toISOString();
-    updateSyncStatus();
-  } catch(err){
-    showGlobalError("Save failed for " + id + ": " + err.message + " — your edit is kept in this browser tab but was NOT saved to the database. Try again or refresh once the issue clears.");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("localStorage save failed", e);
   }
 }
 
-// Kept as the same call sites the rest of the app already uses (saveToLocalStorage()
-// calls throughout part 3/4/1 logic) — now routes to Supabase instead. Fires a
-// fire-and-forget async persist keyed off currentProductId when available, else
-// no-ops (some call sites save global state.lastSaved only, which doesn't need a DB write).
-function saveToLocalStorage(){
-  if(currentProductId && state.products[currentProductId]){
-    persistProduct(currentProductId);
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn("localStorage load failed", e);
+    return null;
   }
 }
 
@@ -797,314 +425,33 @@ function nextProductId() {
   return "PN" + n;
 }
 
-// ---------- CREATE (3 explicit paths: blank / from archetype template / from existing product) ----------
-// Shared low-level insert — all three creation paths converge here so there is exactly
-// one place that writes a new row into `products`.
-async function insertNewProduct(cloned){
-  state.products[cloned.id] = {
+// ---------- CREATE (template-based) ----------
+function createProductFromTemplate(templateId, newName, newCode) {
+  const template = getProduct(templateId);
+  const newId = nextProductId();
+  const cloned = JSON.parse(JSON.stringify(template));
+  cloned.id = newId;
+  cloned.code = newCode || (template.code + "-NEW");
+  cloned.name = newName || (template.name + " (Copy)");
+  cloned.shortName = newName || (template.shortName ? template.shortName + " (Copy)" : cloned.name);
+  state.products[newId] = {
     current: cloned,
     status: "draft",
     archived: false,
     versions: []
   };
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { error } = await sb.from('products').insert({
-      id: cloned.id,
-      code: cloned.code,
-      name: cloned.name,
-      short_name: cloned.shortName || null,
-      category: cloned.category,
-      status: "draft",
-      archived: false,
-      data: cloned,
-      regulatory_regime: cloned.regulatoryRegime || "india_sebi",
-      updated_by: uid
-    });
-    if(error) throw error;
-    state.lastSaved = new Date().toISOString();
-    updateSyncStatus();
-  } catch(err){
-    showGlobalError("Failed to create new product in the database: " + err.message + " — the product exists only in this browser tab until this is resolved.");
-  }
-  return cloned.id;
-}
-
-// Path 1: true blank slate — minimal shape, every field either empty or a sane default.
-// No sleeves/variants/allocation ranges are pre-filled since a blank product has no
-// implied archetype; the user builds that structure in the editor from scratch.
-function blankProductShape(){
-  return {
-    code: "",
-    name: "",
-    shortName: "",
-    category: "Discretionary — Single Asset Class (Equity)",
-    regulatoryRegime: "india_sebi",
-    assetClasses: [],
-    objective: "",
-    philosophy: "",
-    benchmark: "",
-    rebalanceFrequency: "",
-    riskProfile: "",
-    suitability: "",
-    minInvestment: "",
-    fees: "",
-    taxNote: "",
-    keyRisks: []
-  };
-}
-async function createBlankProduct(newName, newCode){
-  const newId = nextProductId();
-  const cloned = blankProductShape();
-  cloned.id = newId;
-  cloned.code = newCode || newId;
-  cloned.name = newName;
-  cloned.shortName = newName;
-  return insertNewProduct(cloned);
-}
-
-// Path 2: from an archetype template (the `templates` table — placeholder structure,
-// never real client content).
-async function createProductFromTemplate(templateId, newName, newCode) {
-  const template = getTemplate(templateId);
-  if(!template) throw new Error("Template not found: " + templateId);
-  const newId = nextProductId();
-  const cloned = JSON.parse(JSON.stringify(template.data));
-  cloned.id = newId;
-  cloned.code = newCode || newId;
-  cloned.name = newName;
-  cloned.shortName = newName;
-  return insertNewProduct(cloned);
-}
-
-// Path 3: from an existing live product — full deep clone of real content, distinct
-// from the template path so it's never confused with "products doubling as templates."
-async function createProductFromExisting(sourceProductId, newName, newCode) {
-  const source = getProduct(sourceProductId);
-  if(!source) throw new Error("Source product not found: " + sourceProductId);
-  const newId = nextProductId();
-  const cloned = JSON.parse(JSON.stringify(source));
-  cloned.id = newId;
-  cloned.code = newCode || (source.code + "-COPY");
-  cloned.name = newName;
-  cloned.shortName = newName;
-  return insertNewProduct(cloned);
-}
-
-// ---------- COMPLIANCE ENGINE (Phase 1) ----------
-// Checks are scoped by regime (products.regulatory_regime / p.regulatoryRegime) — see
-// ARCHITECTURE.md §2.4. Only india_sebi runs the full SEBI-oriented check set; every
-// other regime runs just the universal weights-sum-to-100% check until that regime's
-// own rules are defined (ROADMAP.md Phase 1).
-
-// Holdings CRUD — draft action, same as editing a product note. Nothing here is
-// checked or published automatically.
-async function addHolding(productId, holding){
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings').insert({
-      product_id: productId,
-      instrument_code: holding.instrument_code,
-      instrument_name: holding.instrument_name,
-      sleeve: holding.sleeve || null,
-      weight_pct: holding.weight_pct,
-      sector: holding.sector || null,
-      updated_by: uid
-    }).select().single();
-    if(error) throw error;
-    if(!state.holdings[productId]) state.holdings[productId] = [];
-    state.holdings[productId].push(data);
-  } catch(err){
-    showGlobalError("Failed to add holding: " + err.message);
-    throw err;
-  }
-}
-
-async function updateHolding(holdingId, productId, fields){
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings')
-      .update({ ...fields, updated_by: uid })
-      .eq('id', holdingId)
-      .select().single();
-    if(error) throw error;
-    const list = state.holdings[productId] || [];
-    const idx = list.findIndex(h=>h.id===holdingId);
-    if(idx >= 0) list[idx] = data;
-  } catch(err){
-    showGlobalError("Failed to update holding: " + err.message);
-    throw err;
-  }
-}
-
-async function deleteHolding(holdingId, productId){
-  try {
-    const { error } = await sb.from('portfolio_holdings').delete().eq('id', holdingId);
-    if(error) throw error;
-    state.holdings[productId] = (state.holdings[productId]||[]).filter(h=>h.id!==holdingId);
-  } catch(err){
-    showGlobalError("Failed to delete holding: " + err.message);
-    throw err;
-  }
-}
-
-// Pulls the applicable position-size and sector-cap thresholds out of a product's note,
-// regardless of which of the 4 archetype shapes it uses (single-sleeve construction
-// rules, style sleeves, strategic allocation ranges, or risk-variant allocations).
-// Returns { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct } using the
-// most specific numbers available — sleeve/variant-level caps take priority over the
-// top-level portfolioConstructionRules when both exist, since they're more targeted.
-function getEffectiveCapThresholds(p){
-  const rules = p.portfolioConstructionRules || {};
-  let positionMinPct = rules.positionMinPct ?? null;
-  let positionMaxPct = rules.positionMaxPct ?? null;
-  let positionBasis = rules.positionBasis || "portfolio";
-  const sectorCapMaxPct = rules.sectorCapMaxPct ?? null;
-
-  // If a product uses per-sleeve or per-variant caps instead of (or in addition to)
-  // top-level rules, take the tightest (lowest max, highest min) across all of them —
-  // conservative by design, since compliance should flag against the strictest
-  // applicable limit, not the loosest.
-  const sleeveLike = p.styleSleeves || p.strategicAllocationRanges ||
-    (p.variants ? p.variants.flatMap(v=>v.allocation||[]) : null);
-  if(sleeveLike && sleeveLike.length){
-    sleeveLike.forEach(s=>{
-      if(s.positionMinPct != null) positionMinPct = positionMinPct == null ? s.positionMinPct : Math.max(positionMinPct, s.positionMinPct);
-      if(s.positionMaxPct != null) positionMaxPct = positionMaxPct == null ? s.positionMaxPct : Math.min(positionMaxPct, s.positionMaxPct);
-      if(s.positionBasis) positionBasis = s.positionBasis;
-    });
-  }
-  return { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct };
-}
-
-// Runs the regime-appropriate check set against a product's current holdings (not yet
-// published — this checks whatever is currently in portfolio_holdings for that product).
-// Returns { compliant: bool, checks: [{name, status, detail}], regime }.
-function runComplianceCheck(productId){
-  const p = getProduct(productId);
-  const holdings = getHoldings(productId);
-  const regime = p.regulatoryRegime || "india_sebi";
-  const checks = [];
-
-  // Universal check — applies regardless of regime.
-  const totalWeight = holdings.reduce((sum,h)=>sum + (Number(h.weight_pct)||0), 0);
-  const weightOk = holdings.length > 0 && Math.abs(totalWeight - 100) <= 0.5;
-  checks.push({
-    name: "Weights sum to 100%",
-    status: holdings.length === 0 ? "no-data" : (weightOk ? "pass" : "fail"),
-    detail: holdings.length === 0
-      ? "No holdings entered yet."
-      : `Current total: ${totalWeight.toFixed(2)}% (tolerance ±0.5%).`
-  });
-
-  if(regime === "india_sebi"){
-    const { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct } = getEffectiveCapThresholds(p);
-
-    // Single-stock concentration cap.
-    if(positionMaxPct != null){
-      const basisLabel = positionBasis === "sleeve" ? "within its sleeve" : "of portfolio";
-      const breaches = holdings.filter(h => Number(h.weight_pct) > positionMaxPct);
-      checks.push({
-        name: `Single-stock cap (max ${positionMaxPct}% ${basisLabel})`,
-        status: breaches.length ? "fail" : "pass",
-        detail: breaches.length
-          ? `Breaches: ${breaches.map(h=>`${h.instrument_name || h.instrument_code} at ${h.weight_pct}%`).join(", ")}.`
-          : "No holding exceeds the cap."
-      });
-    } else {
-      checks.push({ name: "Single-stock cap", status: "no-data", detail: "No position-size maximum is set on this product's note — nothing to check against." });
-    }
-
-    // Sector concentration cap.
-    if(sectorCapMaxPct != null){
-      const bySector = {};
-      holdings.forEach(h=>{
-        if(!h.sector) return;
-        bySector[h.sector] = (bySector[h.sector]||0) + (Number(h.weight_pct)||0);
-      });
-      const breaches = Object.entries(bySector).filter(([,w])=>w > sectorCapMaxPct);
-      checks.push({
-        name: `Sector cap (max ${sectorCapMaxPct}%)`,
-        status: breaches.length ? "fail" : "pass",
-        detail: breaches.length
-          ? `Breaches: ${breaches.map(([s,w])=>`${s} at ${w.toFixed(1)}%`).join(", ")}.`
-          : (holdings.some(h=>!h.sector) ? "No breach among holdings with a sector tagged. Some holdings have no sector set." : "No sector exceeds the cap.")
-      });
-    } else {
-      checks.push({ name: "Sector cap", status: "no-data", detail: "No sector cap is set on this product's note — nothing to check against." });
-    }
-
-    // Risk-profile-to-allocation consistency — only meaningful for Conservative variants
-    // with an explicit equity-like exposure expectation; otherwise no-data, not a failure.
-    if(p.variants){
-      const conservative = p.variants.find(v => (v.profile||"").toLowerCase().includes("conservative"));
-      if(conservative && conservative.expectedEquityLikeExposure){
-        checks.push({
-          name: "Risk-profile-to-allocation consistency (Conservative)",
-          status: "no-data",
-          detail: `Expected equity-like exposure for Conservative: ${conservative.expectedEquityLikeExposure}. Not mechanically checked against live holdings yet — confirm manually.`
-        });
-      }
-    }
-
-    // SEBI disclosure checklist — human-confirmed, not mechanically checkable.
-    checks.push({
-      name: "SEBI disclosure requirement checklist",
-      status: "manual",
-      detail: "Human-confirmed item — not automatically checked. Confirm required disclosures are current before publishing."
-    });
-  } else {
-    checks.push({
-      name: `Regime-specific checks (${regime})`,
-      status: "no-data",
-      detail: "No regime-specific rules are defined for this regime yet — only the universal weights check applies. See ARCHITECTURE.md §2.4."
-    });
-  }
-
-  // Compliant only if every mechanically-checkable item passes; "no-data" and "manual"
-  // items don't block, since they either have nothing to check or require a human.
-  const compliant = checks.every(c => c.status !== "fail");
-  return { compliant, checks, regime, checkedAt: new Date().toISOString() };
-}
-
-// Persists a compliance check result as a row in portfolio_holdings_history — this is
-// both the audit log entry and the source of truth Publish gating reads from.
-async function recordComplianceCheck(productId){
-  const result = runComplianceCheck(productId);
-  const holdings = getHoldings(productId);
-  const hist = getComplianceHistory(productId);
-  const nextRebalanceNumber = hist.length ? Math.max(...hist.map(h=>h.rebalance_number)) + 1 : 1;
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings_history').insert({
-      product_id: productId,
-      rebalance_number: nextRebalanceNumber,
-      holdings_snapshot: holdings,
-      compliance_check_result: result,
-      created_by: uid
-    }).select().single();
-    if(error) throw error;
-    if(!state.complianceChecks[productId]) state.complianceChecks[productId] = [];
-    state.complianceChecks[productId].push(data);
-    return result;
-  } catch(err){
-    showGlobalError("Failed to record compliance check: " + err.message);
-    throw err;
-  }
+  saveToLocalStorage();
+  return newId;
 }
 
 // ---------- ARCHIVE / UNARCHIVE ----------
-async function archiveProduct(id) {
+function archiveProduct(id) {
   state.products[id].archived = true;
-  await persistProduct(id);
+  saveToLocalStorage();
 }
-async function unarchiveProduct(id) {
+function unarchiveProduct(id) {
   state.products[id].archived = false;
-  await persistProduct(id);
+  saveToLocalStorage();
 }
 
 // ---------- NAV / ROUTING ----------
@@ -1162,7 +509,7 @@ function renderNav(){
       const entry = getEntry(p.id);
       const el = document.createElement("div");
       el.className = "nav-item" + (currentProductId===p.id && (currentView==="product"||currentView==="edit"||currentView==="history") ? " active" : "");
-      el.innerHTML = `<span>${escText(p.shortName || p.name)}<br><span class="code">${escText(p.code)} · ${escText(p.id)}</span></span><span class="status-dot ${entry.status}" title="${entry.status}"></span>`;
+      el.innerHTML = `<span>${p.shortName || p.name}<br><span class="code">${p.code} · ${p.id}</span></span><span class="status-dot ${entry.status}" title="${entry.status}"></span>`;
       el.onclick = ()=>showProduct(p.id);
       list.appendChild(el);
     });
@@ -1196,8 +543,6 @@ function showView(v){
   if(v==="backup") renderBackupView();
   if(v==="archive") renderArchiveView();
   if(v==="create") renderCreateView();
-  if(v==="templates") renderTemplatesView();
-  if(v==="compliance") renderComplianceOverview();
   renderNav();
 }
 
@@ -1251,11 +596,11 @@ function renderOverview(){
     card.className = "p-card";
     card.onclick = ()=>showProduct(p.id);
     card.innerHTML = `
-      <span class="tag ${isSys?'sys':''}">${escText(p.id)} · ${escText(p.code)} <span class="status-pill ${entry.status}" style="margin-left:auto;"><span class="dot"></span>${entry.status}</span></span>
-      <h3>${escText(p.name)}</h3>
-      <p>${escText((p.objective||"").slice(0,130))}...</p>
+      <span class="tag ${isSys?'sys':''}">${p.id} · ${p.code} <span class="status-pill ${entry.status}" style="margin-left:auto;"><span class="dot"></span>${entry.status}</span></span>
+      <h3>${p.name}</h3>
+      <p>${(p.objective||"").slice(0,130)}...</p>
       <div class="meta">
-        <span class="risk-badge ${riskClass(p.riskProfile)}">${escText(p.riskProfile)}</span>
+        <span class="risk-badge ${riskClass(p.riskProfile)}">${p.riskProfile}</span>
         <span>${p.assetClasses.length} asset class${p.assetClasses.length>1?'es':''}</span>
         <span>v${entry.versions.length}</span>
       </div>
@@ -1264,466 +609,39 @@ function renderOverview(){
   });
 }
 
-// ---------- CREATE NEW PRODUCT (3 explicit paths) ----------
-let createPath = "blank"; // "blank" | "template" | "existing"
-
+// ---------- CREATE NEW PRODUCT ----------
 function renderCreateView(){
-  createPath = "blank";
-  renderCreateViewBody();
-}
-
-function setCreatePath(path){
-  createPath = path;
-  renderCreateViewBody();
-}
-
-function renderCreateViewBody(){
   const main = document.getElementById("main");
   const all = getAllProducts();
-  const templates = getAllTemplates();
-
-  const tabBtn = (path, label) =>
-    `<button class="btn ${createPath===path ? 'primary' : ''}" onclick="setCreatePath('${path}')">${label}</button>`;
-
-  let bodyHtml = "";
-  if(createPath === "blank"){
-    bodyHtml = `
-      <div class="callout">Starts from an empty product with no pre-filled sleeves, variants, or allocation ranges. Use this when the product doesn't match any existing archetype and you want to build the structure yourself in the editor.</div>
-      <div class="field-row"><div class="field-label">New Product Name</div>
-        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
-      </div>
-      <div class="field-row"><div class="field-label">New Product Code</div>
-        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
-      </div>
-      <div style="margin-top:16px;">
-        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
-        <button class="btn" onclick="showView('overview')">Cancel</button>
-      </div>
-    `;
-  } else if(createPath === "template"){
-    const options = templates.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-    const selectedId = templates.length ? templates[0].id : null;
-    bodyHtml = templates.length ? `
-      <div class="callout">Starts from a clean archetype structure — style-sleeve equity, strategic allocation, risk-profiled variants, or goal-based glide path — with placeholder text, not real client content. Manage the available archetypes from <a href="#" onclick="showView('templates');return false;">Manage Templates</a>.</div>
-      <div class="field-row"><div class="field-label">Archetype Template</div>
-        <select id="createTemplateSelect" onchange="renderCreateTemplateDescription()">${options}</select>
-      </div>
-      <div class="callout" id="createTemplateDescription" style="margin-top:-8px;"></div>
-      <div class="field-row"><div class="field-label">New Product Name</div>
-        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
-      </div>
-      <div class="field-row"><div class="field-label">New Product Code</div>
-        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
-      </div>
-      <div style="margin-top:16px;">
-        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
-        <button class="btn" onclick="showView('overview')">Cancel</button>
-      </div>
-    ` : `
-      <div class="callout">No archetype templates exist yet. <a href="#" onclick="showView('templates');return false;">Create one in Manage Templates</a> first, or use "Start Blank" instead.</div>
-    `;
-  } else if(createPath === "existing"){
-    const options = all.map(p=>`<option value="${p.id}">${p.id} — ${p.name} (${p.category})</option>`).join("");
-    bodyHtml = `
-      <div class="callout">Full copy of a live product's actual content (objective, philosophy, allocation, risk text — everything), given a new ID. Use this when you're building a close variant of something that already exists, not a fresh archetype.</div>
-      <div class="field-row"><div class="field-label">Copy From</div>
-        <select id="createExistingSelect">${options}</select>
-      </div>
-      <div class="field-row"><div class="field-label">New Product Name</div>
-        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
-      </div>
-      <div class="field-row"><div class="field-label">New Product Code</div>
-        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
-      </div>
-      <div style="margin-top:16px;">
-        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
-        <button class="btn" onclick="showView('overview')">Cancel</button>
-      </div>
-    `;
-  }
-
+  const options = all.map(p=>`<option value="${p.id}">${p.id} — ${p.name} (${p.category})</option>`).join("");
   main.innerHTML = `
-    <div class="topbar"><div><h1>New Product Note</h1><div class="topbar-sub">Choose how to start — blank, from an archetype template, or copied from an existing product</div></div></div>
-    <div class="card" style="margin-bottom:16px;">
-      <div class="toolbar">
-        ${tabBtn("blank", "Start Blank")}
-        ${tabBtn("template", "From Archetype Template")}
-        ${tabBtn("existing", "From Existing Product")}
+    <div class="topbar"><div><h1>New Product Note</h1><div class="topbar-sub">Clone the closest existing product as a starting shape, then edit</div></div></div>
+    <div class="callout">Choose whichever existing product has the closest structure to what you're building — a risk-profiled variant set, a goal-based glide path, a style-sleeve equity product, etc. This copies its field structure (not its content) so you're editing, not building from a blank form.</div>
+    <div class="card">
+      <div class="field-row"><div class="field-label">Template</div>
+        <select id="createTemplateSelect">${options}</select>
+      </div>
+      <div class="field-row"><div class="field-label">New Product Name</div>
+        <input type="text" id="createNameInput" placeholder="e.g. Discretionary Multi-Asset Portfolio — Aggressive Growth Variant">
+      </div>
+      <div class="field-row"><div class="field-label">New Product Code</div>
+        <input type="text" id="createCodeInput" placeholder="e.g. DMAP-AGV" class="input-sm">
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn primary" onclick="handleCreateProduct()">Create &amp; Open for Editing</button>
+        <button class="btn" onclick="showView('overview')">Cancel</button>
       </div>
     </div>
-    <div class="card">${bodyHtml}</div>
   `;
-  if(createPath === "template" && templates.length) renderCreateTemplateDescription();
 }
 
-function renderCreateTemplateDescription(){
-  const sel = document.getElementById("createTemplateSelect");
-  const descEl = document.getElementById("createTemplateDescription");
-  if(!sel || !descEl) return;
-  const t = getTemplate(sel.value);
-  descEl.textContent = t && t.description ? t.description : "";
-}
-
-async function handleCreateProduct(){
+function handleCreateProduct(){
+  const templateId = document.getElementById("createTemplateSelect").value;
   const name = document.getElementById("createNameInput").value.trim();
   const code = document.getElementById("createCodeInput").value.trim();
   if(!name){ alert("Please enter a name for the new product."); return; }
-  const btn = event && event.target;
-  if(btn) { btn.disabled = true; btn.textContent = "Creating…"; }
-  try {
-    let newId;
-    if(createPath === "blank"){
-      newId = await createBlankProduct(name, code || undefined);
-    } else if(createPath === "template"){
-      const templateId = document.getElementById("createTemplateSelect").value;
-      newId = await createProductFromTemplate(templateId, name, code || undefined);
-    } else if(createPath === "existing"){
-      const sourceId = document.getElementById("createExistingSelect").value;
-      newId = await createProductFromExisting(sourceId, name, code || undefined);
-    }
-    showEdit(newId);
-  } catch(err){
-    showGlobalError("Failed to create product: " + err.message);
-  } finally {
-    if(btn) { btn.disabled = false; btn.textContent = "Create & Open for Editing"; }
-  }
-}
-
-// ---------- MANAGE TEMPLATES ----------
-let editingTemplateId = null; // null = not editing; "__new__" = creating new
-
-function renderTemplatesView(){
-  editingTemplateId = null;
-  renderTemplatesViewBody();
-}
-
-function renderTemplatesViewBody(){
-  const main = document.getElementById("main");
-  const templates = getAllTemplates();
-
-  if(editingTemplateId !== null){
-    renderTemplateEditor();
-    return;
-  }
-
-  main.innerHTML = `
-    <div class="topbar">
-      <div><h1>Manage Templates</h1><div class="topbar-sub">Archetype starting structures used by "New Product → From Archetype Template." Kept separate from live products.</div></div>
-      <div class="toolbar"><button class="btn primary" onclick="startNewTemplate()">+ New Template</button></div>
-    </div>
-    <div class="callout">Templates hold placeholder structure only — never real client content. Editing or deleting a template has no effect on any already-created product; the clone happens once, at creation time.</div>
-    <div class="grid-overview" id="templatesGrid"></div>
-  `;
-  const grid = document.getElementById("templatesGrid");
-  if(!templates.length){
-    grid.innerHTML = `<div class="callout">No templates yet. Click "+ New Template" to create the first one.</div>`;
-    return;
-  }
-  templates.forEach(t=>{
-    const card = document.createElement("div");
-    card.className = "p-card";
-    card.innerHTML = `
-      <span class="tag">${t.archetype}</span>
-      <h3>${t.name}</h3>
-      <p>${(t.description||"").slice(0,160)}</p>
-      <div class="meta" style="margin-top:12px;">
-        <button class="btn" onclick="editTemplate('${t.id}')">Edit</button>
-        <button class="btn" onclick="handleDeleteTemplate('${t.id}')">Delete</button>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function startNewTemplate(){
-  editingTemplateId = "__new__";
-  renderTemplateEditor();
-}
-function editTemplate(id){
-  editingTemplateId = id;
-  renderTemplateEditor();
-}
-
-function renderTemplateEditor(){
-  const main = document.getElementById("main");
-  const isNew = editingTemplateId === "__new__";
-  const t = isNew ? null : getTemplate(editingTemplateId);
-  if(!isNew && !t){
-    showGlobalError("Template not found — it may have been deleted in another tab.");
-    editingTemplateId = null;
-    renderTemplatesViewBody();
-    return;
-  }
-  main.innerHTML = `
-    <div class="topbar"><div><h1>${isNew ? "New Template" : "Edit Template — " + t.name}</h1><div class="topbar-sub">Structure only — no real client content</div></div></div>
-    <div class="card">
-      <div class="field-row"><div class="field-label">Template Name</div>
-        <input type="text" id="tplNameInput" value="${isNew ? '' : (t.name||'').replace(/"/g,'&quot;')}" placeholder="e.g. Single-Sleeve Equity">
-      </div>
-      <div class="field-row"><div class="field-label">Description</div>
-        <textarea id="tplDescInput" rows="2" placeholder="Shown to users choosing this template on the Create screen">${isNew ? '' : (t.description||'')}</textarea>
-      </div>
-      <div class="field-row"><div class="field-label">Archetype Tag</div>
-        <select id="tplArchetypeInput">
-          ${["single-sleeve","strategic-allocation","risk-variant","goal-based","other"].map(a=>
-            `<option value="${a}" ${!isNew && t.archetype===a ? 'selected':''}>${a}</option>`).join("")}
-        </select>
-      </div>
-      <div class="field-row"><div class="field-label">Structure (JSON)</div>
-        <textarea id="tplDataInput" rows="18" style="font-family:monospace;font-size:12.5px;" placeholder='{"code":"","name":"","...":"..."}'>${isNew ? blankTemplateDataPlaceholder() : JSON.stringify(t.data, null, 2)}</textarea>
-        <div class="topbar-sub" style="margin-top:6px;">Same field shape as a product's data (e.g. <code>styleSleeves</code>, <code>variants</code>, <code>portfolioConstructionRules</code>). Must be valid JSON.</div>
-      </div>
-      <div style="margin-top:16px;">
-        <button class="btn primary" onclick="handleSaveTemplate()">Save Template</button>
-        <button class="btn" onclick="editingTemplateId=null;renderTemplatesViewBody();">Cancel</button>
-      </div>
-    </div>
-  `;
-}
-
-function blankTemplateDataPlaceholder(){
-  return JSON.stringify({
-    code: "NEW-CODE", name: "New Template Product", shortName: "Short name",
-    category: "Discretionary — Single Asset Class (Equity)", assetClasses: [],
-    objective: "", philosophy: "", benchmark: "", rebalanceFrequency: "",
-    riskProfile: "", suitability: "", minInvestment: "", fees: "", taxNote: "",
-    keyRisks: []
-  }, null, 2);
-}
-
-async function handleSaveTemplate(){
-  const name = document.getElementById("tplNameInput").value.trim();
-  const description = document.getElementById("tplDescInput").value.trim();
-  const archetype = document.getElementById("tplArchetypeInput").value;
-  const rawData = document.getElementById("tplDataInput").value;
-  if(!name){ alert("Please enter a template name."); return; }
-  let parsedData;
-  try {
-    parsedData = JSON.parse(rawData);
-  } catch(err){
-    alert("Structure field is not valid JSON: " + err.message);
-    return;
-  }
-  // Minimal shape guard: a product created from a template missing these fields
-  // crashes renderNav() (category.startsWith, assetClasses.length) on EVERY view
-  // transition — which breaks the app for every signed-in user, not just the one who
-  // made the mistake. This is deliberately narrow (just the fields that are actually
-  // dereferenced unconditionally elsewhere), not a full schema validator.
-  const requiredFields = [
-    ["category", v => typeof v === "string" && v.length > 0],
-    ["assetClasses", v => Array.isArray(v)],
-    ["code", v => typeof v === "string"],
-    ["name", v => typeof v === "string"]
-  ];
-  const missing = requiredFields.filter(([field, check]) => !check(parsedData[field]));
-  if(missing.length){
-    alert(
-      "Structure is missing or has the wrong type for required field(s): " + missing.map(([f])=>f).join(", ") + ".\n\n" +
-      "These fields are read unconditionally elsewhere in the app (e.g. the sidebar nav), so a template missing them would break the app for every signed-in user as soon as a product is created from it. " +
-      "Add at least: category (string), assetClasses (array), code (string), name (string)."
-    );
-    return;
-  }
-  const isNew = editingTemplateId === "__new__";
-  const id = isNew ? nextTemplateId() : editingTemplateId;
-  const btn = event && event.target;
-  if(btn) { btn.disabled = true; btn.textContent = "Saving…"; }
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    if(isNew){
-      const { error } = await sb.from('templates').insert({
-        id, name, description: description || null, archetype, data: parsedData, updated_by: uid
-      });
-      if(error) throw error;
-    } else {
-      const { error } = await sb.from('templates')
-        .update({ name, description: description || null, archetype, data: parsedData, updated_by: uid })
-        .eq('id', id);
-      if(error) throw error;
-    }
-    state.templates[id] = { id, name, description, archetype, data: parsedData };
-    editingTemplateId = null;
-    dismissGlobalError();
-    renderTemplatesViewBody();
-  } catch(err){
-    showGlobalError("Failed to save template: " + err.message);
-  } finally {
-    if(btn) { btn.disabled = false; btn.textContent = "Save Template"; }
-  }
-}
-
-async function handleDeleteTemplate(id){
-  const t = getTemplate(id);
-  if(!t) return;
-  if(!confirm(`Delete template "${t.name}"? This does not affect any product already created from it.`)) return;
-  try {
-    const { error } = await sb.from('templates').delete().eq('id', id);
-    if(error) throw error;
-    delete state.templates[id];
-    renderTemplatesViewBody();
-  } catch(err){
-    showGlobalError("Failed to delete template: " + err.message);
-  }
-}
-
-function nextTemplateId(){
-  const existing = Object.keys(state.templates);
-  let n = 1;
-  while (existing.includes("T" + n)) n++;
-  return "T" + n;
-}
-
-// ---------- COMPLIANCE SCREENS ----------
-function showProductCompliance(id){
-  currentView = "productCompliance";
-  currentProductId = id;
-  renderProductCompliance(id);
-  renderNav();
-}
-
-function renderComplianceOverview(){
-  const main = document.getElementById("main");
-  const all = getAllProducts();
-  main.innerHTML = `
-    <div class="topbar"><div><h1>Compliance</h1><div class="topbar-sub">Holdings, checks, and publish-gating status across all active products</div></div></div>
-    <div class="callout">Editing holdings here is a draft action — nothing is checked or published automatically. Run "Check Compliance" to evaluate current draft holdings against this product's regime-appropriate rules. Publish is blocked (with an override) only when the last recorded check is Non-Compliant, and only for regimes where the checks are binding.</div>
-    <div class="grid-overview" id="complianceGrid"></div>
-  `;
-  const grid = document.getElementById("complianceGrid");
-  all.forEach(p=>{
-    const lastCheck = getLastComplianceCheck(p.id);
-    const holdings = getHoldings(p.id);
-    const regime = p.regulatoryRegime || "india_sebi";
-    let statusLabel, statusClass;
-    if(!lastCheck){
-      statusLabel = "Not checked yet"; statusClass = "draft";
-    } else if(lastCheck.compliance_check_result.compliant){
-      statusLabel = "Compliant"; statusClass = "published";
-    } else {
-      statusLabel = "Non-Compliant"; statusClass = "draft";
-    }
-    const card = document.createElement("div");
-    card.className = "p-card";
-    card.onclick = ()=>showProductCompliance(p.id);
-    card.innerHTML = `
-      <span class="tag">${escText(p.id)} · ${escText(p.code)} <span class="status-pill ${statusClass}" style="margin-left:auto;"><span class="dot"></span>${statusLabel}</span></span>
-      <h3>${escText(p.name)}</h3>
-      <p>${holdings.length} holding${holdings.length===1?'':'s'} entered · regime: ${escText(regime)}</p>
-      <div class="meta">
-        ${lastCheck ? `<span>Last checked ${new Date(lastCheck.created_at).toLocaleDateString()}</span>` : `<span>No checks run</span>`}
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function renderProductCompliance(id){
-  const p = getProduct(id);
-  const main = document.getElementById("main");
-  const holdings = getHoldings(id);
-  const history = getComplianceHistory(id).slice().reverse(); // most recent first
-  const lastCheck = history.length ? history[0] : null;
-  const regime = p.regulatoryRegime || "india_sebi";
-  const totalWeight = holdings.reduce((sum,h)=>sum + (Number(h.weight_pct)||0), 0);
-
-  let html = `
-    <div class="topbar">
-      <div>
-        <h1>Compliance — ${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.code)} · regime: ${escText(regime)} · ${holdings.length} holding${holdings.length===1?'':'s'} · total weight ${totalWeight.toFixed(2)}%</div>
-      </div>
-      <div class="toolbar">
-        <button class="btn" onclick="showEdit('${id}')">← Back to Edit</button>
-        <button class="btn" onclick="showView('compliance')">All Products</button>
-        <button class="btn primary" onclick="handleCheckCompliance('${id}')">Check Compliance</button>
-      </div>
-    </div>
-  `;
-
-  if(lastCheck){
-    const result = lastCheck.compliance_check_result;
-    html += `<div class="callout ${result.compliant ? '' : 'warn'}">
-      <strong>${result.compliant ? 'Compliant' : 'Non-Compliant'}</strong> as of last check (${new Date(lastCheck.created_at).toLocaleString()}, rebalance #${lastCheck.rebalance_number}). ${result.compliant ? 'Publish is not blocked.' : 'Publish will show an override confirmation until this clears.'}
-    </div>`;
-    html += `<h2 class="section">Last Check — Rule Detail</h2><div class="card">`;
-    result.checks.forEach(c=>{
-      const badgeClass = c.status === "pass" ? "published" : c.status === "fail" ? "draft" : "draft";
-      const badgeLabel = { pass: "Pass", fail: "Fail", "no-data": "No data", manual: "Manual" }[c.status] || c.status;
-      html += `<div class="kv" style="align-items:flex-start;">
-        <div class="k">${c.name} <span class="status-pill ${badgeClass}" style="margin-left:6px;"><span class="dot"></span>${badgeLabel}</span></div>
-        <div class="v">${c.detail}</div>
-      </div>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div class="callout warn">No compliance check has been run yet for this product. Enter holdings below, then click "Check Compliance."</div>`;
-  }
-
-  html += `<h2 class="section">Current Draft Holdings <span class="s-label-inline">structured</span></h2><div class="card">`;
-  html += `<div id="holdingsEditor-${id}">`;
-  holdings.forEach(h=>{
-    html += `
-      <div class="editable-table-row five" data-holding-id="${h.id}">
-        <input type="text" value="${escAttr(h.instrument_code)}" onchange="handleUpdateHolding('${h.id}','${id}','instrument_code',this.value)" placeholder="Code/ISIN">
-        <input type="text" value="${escAttr(h.instrument_name)}" onchange="handleUpdateHolding('${h.id}','${id}','instrument_name',this.value)" placeholder="Instrument name">
-        <input type="text" value="${escAttr(h.sector||'')}" onchange="handleUpdateHolding('${h.id}','${id}','sector',this.value)" placeholder="Sector">
-        <input type="number" min="0" max="100" step="0.01" class="input-sm" value="${h.weight_pct}" onchange="handleUpdateHolding('${h.id}','${id}','weight_pct',this.value)" placeholder="Weight %">
-        <button class="row-remove" onclick="handleDeleteHolding('${h.id}','${id}')">×</button>
-      </div>
-    `;
-  });
-  html += `</div>`;
-  html += `<div style="margin-top:12px;"><button class="btn small" onclick="handleAddHolding('${id}')">+ Add Holding</button></div>`;
-  html += `<div class="topbar-sub" style="margin-top:10px;">Total weight: ${totalWeight.toFixed(2)}% ${Math.abs(totalWeight-100)<=0.5 ? '(within tolerance)' : '(should sum to ~100%)'}</div>`;
-  html += `</div>`;
-
-  if(history.length){
-    html += `<h2 class="section">Check History</h2><div class="card">`;
-    history.forEach(h=>{
-      const r = h.compliance_check_result;
-      html += `<div class="kv"><div class="k">Rebalance #${h.rebalance_number} — ${new Date(h.created_at).toLocaleString()}</div><div class="v">${r.compliant ? 'Compliant' : 'Non-Compliant'} · ${h.holdings_snapshot.length} holding(s)</div></div>`;
-    });
-    html += `</div>`;
-  }
-
-  main.innerHTML = html;
-}
-
-async function handleCheckCompliance(id){
-  const btn = event && event.target;
-  if(btn) { btn.disabled = true; btn.textContent = "Checking…"; }
-  try {
-    await recordComplianceCheck(id);
-    renderProductCompliance(id);
-  } catch(err){
-    // recordComplianceCheck already shows a global error
-  } finally {
-    if(btn) { btn.disabled = false; btn.textContent = "Check Compliance"; }
-  }
-}
-
-async function handleAddHolding(id){
-  try {
-    await addHolding(id, { instrument_code: "", instrument_name: "", weight_pct: 0 });
-    renderProductCompliance(id);
-  } catch(err){ /* addHolding already shows a global error */ }
-}
-
-async function handleUpdateHolding(holdingId, productId, field, value){
-  const fields = {};
-  fields[field] = field === "weight_pct" ? (clampPct(value) ?? 0) : value;
-  try {
-    await updateHolding(holdingId, productId, fields);
-  } catch(err){ /* updateHolding already shows a global error */ }
-}
-
-async function handleDeleteHolding(holdingId, productId){
-  if(!confirm("Remove this holding from the draft?")) return;
-  try {
-    await deleteHolding(holdingId, productId);
-    renderProductCompliance(productId);
-  } catch(err){ /* deleteHolding already shows a global error */ }
+  const newId = createProductFromTemplate(templateId, name, code || undefined);
+  showEdit(newId);
 }
 
 // ---------- ARCHIVE VIEW ----------
@@ -1745,9 +663,9 @@ function renderArchiveView(){
     const card = document.createElement("div");
     card.className = "p-card";
     card.innerHTML = `
-      <span class="tag">${escText(p.id)} · ${escText(p.code)}</span>
-      <h3>${escText(p.name)}</h3>
-      <p>${escText((p.objective||"").slice(0,130))}...</p>
+      <span class="tag">${p.id} · ${p.code}</span>
+      <h3>${p.name}</h3>
+      <p>${(p.objective||"").slice(0,130)}...</p>
       <div class="toolbar" style="margin-top:10px;">
         <button class="btn small" onclick="event.stopPropagation(); showProduct('${p.id}')">View</button>
         <button class="btn small primary" onclick="event.stopPropagation(); handleUnarchive('${p.id}')">Restore</button>
@@ -1757,15 +675,15 @@ function renderArchiveView(){
   });
 }
 
-async function handleUnarchive(id){
-  await unarchiveProduct(id);
+function handleUnarchive(id){
+  unarchiveProduct(id);
   renderNav();
   showView("archive");
 }
 
-async function handleArchive(id){
+function handleArchive(id){
   if(!confirm("Archive this product? It will move out of the main overview and bulk exports, but stays fully recoverable from the Archived section.")) return;
-  await archiveProduct(id);
+  archiveProduct(id);
   renderNav();
   showView("overview");
 }
@@ -1783,16 +701,14 @@ function renderProduct(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.category)} · Code: ${escText(p.code)} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · v${entry.versions.length}</div>
+        <h1>${p.name}</h1>
+        <div class="topbar-sub">${p.category} · Code: ${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · v${entry.versions.length}</div>
       </div>
       <div class="toolbar">
         <button class="btn primary" onclick="showEdit('${p.id}')">Edit</button>
         <button class="btn" onclick="showHistory('${p.id}')">History &amp; Diff</button>
         <button class="btn" onclick="exportDocx('${p.id}')">→ Word</button>
         <button class="btn" onclick="exportXlsx('${p.id}')">→ Excel</button>
-        <button class="btn" onclick="exportPdf('${p.id}')">→ PDF (Full Note)</button>
-        <button class="btn" onclick="exportClientSummaryPdf('${p.id}')">→ PDF (Client Summary)</button>
         <button class="btn" onclick="emailNote('${p.id}')">✉ Email This Note</button>
         ${entry.archived ? `<button class="btn" onclick="handleUnarchive('${p.id}')">Restore from Archive</button>` : `<button class="btn danger" onclick="handleArchive('${p.id}')">Archive</button>`}
       </div>
@@ -1829,7 +745,8 @@ function renderProduct(id){
   if(p.portfolioConstructionRules){
     html += `<h2 class="section">Construction Rules</h2><div class="card">`;
     html += kv("Stock Count Range", p.portfolioConstructionRules.stockCountRange || "—");
-    html += kv("Caps &amp; Position Sizing", formatCapsSentence(p.portfolioConstructionRules));
+    html += kv("Single-Stock Cap", p.portfolioConstructionRules.singleStockCap || "—");
+    html += kv("Sector Cap", p.portfolioConstructionRules.sectorCap || "—");
     html += kv("Cash Buffer", p.portfolioConstructionRules.cashBuffer || "—");
     html += `</div>`;
   }
@@ -1957,16 +874,16 @@ function handleCsvFile(file){
       let totalWeight = 0;
       rows.forEach(r=>{ const w = parseFloat(r.weight); if(!isNaN(w)) totalWeight += (w>1? w : w*100 <=100 && w<=1 ? w*100 : w); });
       document.getElementById("csvResult").innerHTML = `
-        <div class="callout">Loaded <strong>${rows.length}</strong> constituents for <strong>${escText(p.name)}</strong>. Approx. total weight: <strong>${totalWeight.toFixed(1)}%</strong> ${Math.abs(totalWeight-100)>2 ? '<span style="color:var(--amber)">— check weights sum to ~100%</span>' : '<span style="color:var(--green)">OK</span>'}</div>
+        <div class="callout">Loaded <strong>${rows.length}</strong> constituents for <strong>${p.name}</strong>. Approx. total weight: <strong>${totalWeight.toFixed(1)}%</strong> ${Math.abs(totalWeight-100)>2 ? '<span style="color:var(--amber)">— check weights sum to ~100%</span>' : '<span style="color:var(--green)">OK</span>'}</div>
         <table><tr><th>Symbol</th><th>Name</th><th>Weight</th></tr>
-        ${rows.slice(0,50).map(r=>`<tr><td>${escText(r.symbol)}</td><td>${escText(r.name)}</td><td>${escText(r.weight)}</td></tr>`).join("")}
+        ${rows.slice(0,50).map(r=>`<tr><td>${r.symbol}</td><td>${r.name}</td><td>${r.weight}</td></tr>`).join("")}
         </table>
         ${rows.length>50 ? `<div style="color:var(--text-faint); font-size:.7rem;">Showing first 50 of ${rows.length} rows.</div>` : ""}
         <button class="btn primary" style="margin-top:12px;" onclick="showProduct('${pid}')">View Product Note →</button>
       `;
     },
     error: function(err){
-      document.getElementById("csvResult").innerHTML = `<div class="callout danger">Parse error: ${escText(err.message)}</div>`;
+      document.getElementById("csvResult").innerHTML = `<div class="callout danger">Parse error: ${err.message}</div>`;
     }
   });
 }
@@ -2089,78 +1006,6 @@ function weightSumBadge(rows, containerId){
   return `<span class="weight-sum-badge ${ok?'weight-sum-ok':'weight-sum-bad'}">Range sums: low ${lo.toFixed(0)}% – high ${hi.toFixed(0)}% ${ok? '(plausible)':'(check — should bracket 100%)'}</span>`;
 }
 
-function formatCapsSentence(rules){
-  // Single source of truth for the human-readable caps sentence shown on the note
-  // page and in both exports. Reads only the numeric fields -- there is no separate
-  // free-text cap field anymore, so this can never drift from what compliance checks
-  // against. Returns "—" if nothing numeric has been set yet.
-  if(!rules) return "—";
-  const parts = [];
-  if(rules.positionMinPct!=null || rules.positionMaxPct!=null){
-    const lo = rules.positionMinPct!=null ? rules.positionMinPct+"%" : "no minimum";
-    const hi = rules.positionMaxPct!=null ? rules.positionMaxPct+"%" : "no maximum";
-    const basis = rules.positionBasis==='sleeve' ? "of sleeve" : "of portfolio";
-    parts.push(`Position size ${lo}–${hi} ${basis}`);
-  }
-  if(rules.sectorCapMaxPct!=null){
-    parts.push(`Sector cap ${rules.sectorCapMaxPct}%`);
-  }
-  if(rules.sleeveMinPct!=null || rules.sleeveMaxPct!=null){
-    const lo = rules.sleeveMinPct!=null ? rules.sleeveMinPct+"%" : "—";
-    const hi = rules.sleeveMaxPct!=null ? rules.sleeveMaxPct+"%" : "—";
-    parts.push(`Equity exposure ${lo}–${hi}`);
-  }
-  return parts.length ? parts.join("; ") : "—";
-}
-
-function clampPct(value){
-  // Parses free user input into a number in [0,100] or null if not a valid number.
-  // Used for every new structured cap/range field so bad input can never silently
-  // become NaN or a negative/absurd percentage in the data.
-  if(value === "" || value === null || value === undefined) return null;
-  const n = parseFloat(value);
-  if(isNaN(n)) return null;
-  return Math.max(0, Math.min(100, n));
-}
-
-function capFieldsHtml(sleeveMinVal, sleeveMaxVal, posMinVal, posMaxVal, posBasis, onSleeveMinCall, onSleeveMaxCall, onPosMinCall, onPosMaxCall, onPosBasisCall){
-  // Shared row of numeric-only inputs: sleeve allocation range (min/max %) plus a true
-  // position-size range (min/max %, e.g. "a holding must be at least 2% to be worth
-  // including, and no more than 10%"). Reused across styleSleeves, strategicAllocationRanges,
-  // variant allocations, and the single-sleeve construction-rules block, so all four editors
-  // stay identical rather than drifting apart. All inputs are type="number" with min/max/step
-  // -- there is no free-text path into any of these fields.
-  // on*Call are plain strings holding a full JS call expression missing only the closing
-  // `,this.value)` -- e.g. "updateSleeveNumericField('P1',0,'sleeveMinPct'" -- so this
-  // function only ever does simple string concatenation, never regex post-processing.
-  const smv = (sleeveMinVal===null||sleeveMinVal===undefined) ? '' : sleeveMinVal;
-  const sxv = (sleeveMaxVal===null||sleeveMaxVal===undefined) ? '' : sleeveMaxVal;
-  const pmv = (posMinVal===null||posMinVal===undefined) ? '' : posMinVal;
-  const pxv = (posMaxVal===null||posMaxVal===undefined) ? '' : posMaxVal;
-  return `
-    <div class="cap-fields-row" style="display:flex; gap:8px; align-items:center; margin:6px 0 10px; flex-wrap:wrap;">
-      <label style="font-size:.68rem; color:var(--text-faint);">Sleeve min %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${smv}" onchange="${onSleeveMinCall},this.value)" placeholder="—">
-      </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Sleeve max %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${sxv}" onchange="${onSleeveMaxCall},this.value)" placeholder="—">
-      </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Position min %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${pmv}" onchange="${onPosMinCall},this.value)" placeholder="—">
-      </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Position max %
-        <input type="number" min="0" max="100" step="0.1" class="input-sm" style="width:70px;" value="${pxv}" onchange="${onPosMaxCall},this.value)" placeholder="—">
-      </label>
-      <label style="font-size:.68rem; color:var(--text-faint);">Basis
-        <select class="input-sm" onchange="${onPosBasisCall},this.value)">
-          <option value="portfolio" ${posBasis==='portfolio'?'selected':''}>% of portfolio</option>
-          <option value="sleeve" ${posBasis==='sleeve'?'selected':''}>% of sleeve</option>
-        </select>
-      </label>
-    </div>
-  `;
-}
-
 function renderEdit(id){
   const p = getProduct(id);
   const entry = getEntry(id);
@@ -2169,18 +1014,17 @@ function renderEdit(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>Edit — ${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.code)} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · unsaved changes apply immediately to the working draft</div>
+        <h1>Edit — ${p.name}</h1>
+        <div class="topbar-sub">${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · unsaved changes apply immediately to the working draft</div>
       </div>
       <div class="toolbar">
         <button class="btn" onclick="showProduct('${p.id}')">← Back to Note</button>
         <button class="btn" onclick="addRisk('${p.id}')">+ Add Risk</button>
-        <button class="btn" onclick="showProductCompliance('${p.id}')">Compliance</button>
         <button class="btn primary" onclick="publishProduct('${p.id}')">Publish Version</button>
       </div>
     </div>
 
-    <div class="callout">Structured fields (allocation ranges, factor weights, caps) validate as you type. Prose fields (objective, philosophy, suitability) are freeform text. Nothing is versioned until you click <strong>Publish Version</strong> — until then this is your working draft. Editing holdings and running a compliance check is a separate, additive step on the <strong>Compliance</strong> screen — it does not block Publish unless the last check came back Non-Compliant.</div>
+    <div class="callout">Structured fields (allocation ranges, factor weights, caps) validate as you type. Prose fields (objective, philosophy, suitability) are freeform text. Nothing is versioned until you click <strong>Publish Version</strong> — until then this is your working draft.</div>
 
     <h2 class="section">Key Facts <span class="s-label-inline">structured</span></h2>
     <div class="card">
@@ -2190,14 +1034,6 @@ function renderEdit(id){
       <div class="field-row"><div class="field-label">Min. Investment</div><input type="text" value="${escAttr(p.minInvestment||'')}" onchange="updateField('${id}','minInvestment',this.value)"></div>
       <div class="field-row"><div class="field-label">Fees</div><input type="text" value="${escAttr(p.fees||'')}" onchange="updateField('${id}','fees',this.value)"></div>
       <div class="field-row"><div class="field-label">Tax Note</div><input type="text" value="${escAttr(p.taxNote||'')}" onchange="updateField('${id}','taxNote',this.value)"></div>
-      <div class="field-row"><div class="field-label">Regulatory Regime <span class="s-label-inline">drives compliance checks</span></div>
-        <select onchange="updateField('${id}','regulatoryRegime',this.value)">
-          <option value="india_sebi" ${(p.regulatoryRegime||'india_sebi')==='india_sebi'?'selected':''}>India (SEBI)</option>
-          <option value="other" ${p.regulatoryRegime==='other'?'selected':''}>Other jurisdiction</option>
-          <option value="none" ${p.regulatoryRegime==='none'?'selected':''}>None / not applicable</option>
-        </select>
-        <div class="topbar-sub" style="margin-top:4px;">Only India (SEBI) runs the full cap/sector/disclosure check set. Other regimes run just the universal weights-sum-to-100% check until their own rules are defined — see the Compliance screen.</div>
-      </div>
     </div>
 
     <h2 class="section">Objective &amp; Philosophy <span class="s-label-inline">freeform</span></h2>
@@ -2210,26 +1046,16 @@ function renderEdit(id){
     </div>
   `;
 
-  // Construction rules (caps) — fully numeric, no free-text cap fields. The exported
-  // note's cap sentence (see formatCapsSentence()) is generated from these numbers,
-  // so there is exactly one place a cap is ever set — no drift between what's typed
-  // here and what the document/compliance engine sees.
-  html += `<h2 class="section">Construction Rules — Caps &amp; Limits <span class="s-label-inline">structured, numeric only</span></h2><div class="card">`;
-  const rules = p.portfolioConstructionRules || { stockCountRange:"", cashBuffer:"" };
+  // Construction rules (caps) — structured, applies to single-asset stock products
+  html += `<h2 class="section">Construction Rules — Caps &amp; Limits <span class="s-label-inline">structured</span></h2><div class="card">`;
+  const rules = p.portfolioConstructionRules || { stockCountRange:"", singleStockCap:"", sectorCap:"", cashBuffer:"" };
   html += `
     <div class="field-row"><div class="field-label">Stock Count Range</div><input type="text" class="input-sm" value="${escAttr(rules.stockCountRange)}" onchange="updateConstructionRule('${id}','stockCountRange',this.value)" placeholder="e.g. 15-25"></div>
+    <div class="field-row"><div class="field-label">Single-Stock Cap (%)</div><input type="text" class="input-sm" value="${escAttr(rules.singleStockCap)}" onchange="updateConstructionRule('${id}','singleStockCap',this.value)" placeholder="e.g. 10%"></div>
+    <div class="field-row"><div class="field-label">Sector Cap (%)</div><input type="text" class="input-sm" value="${escAttr(rules.sectorCap)}" onchange="updateConstructionRule('${id}','sectorCap',this.value)" placeholder="e.g. 30%"></div>
     <div class="field-row"><div class="field-label">Cash Buffer (%)</div><input type="text" class="input-sm" value="${escAttr(rules.cashBuffer)}" onchange="updateConstructionRule('${id}','cashBuffer',this.value)" placeholder="e.g. 0-5%"></div>
-    <div class="field-row"><div class="field-label">Sector Cap — Max % <span class="s-label-inline">numeric</span></div><input type="number" min="0" max="100" step="0.1" class="input-sm" value="${rules.sectorCapMaxPct===null||rules.sectorCapMaxPct===undefined?'':rules.sectorCapMaxPct}" onchange="updateConstructionRuleNumeric('${id}','sectorCapMaxPct',this.value)" placeholder="e.g. 30"></div>
   `;
-  html += `<div class="field-label" style="margin-top:14px; margin-bottom:6px;">Sleeve Allocation &amp; Position-Size Range <span class="s-label-inline">structured, numeric only</span></div>`;
-  html += capFieldsHtml(rules.sleeveMinPct, rules.sleeveMaxPct, rules.positionMinPct, rules.positionMaxPct, rules.positionBasis,
-    `updateConstructionRuleNumeric('${id}','sleeveMinPct'`,
-    `updateConstructionRuleNumeric('${id}','sleeveMaxPct'`,
-    `updateConstructionRuleNumeric('${id}','positionMinPct'`,
-    `updateConstructionRuleNumeric('${id}','positionMaxPct'`,
-    `updateConstructionRule('${id}','positionBasis'`
-  );
-  html += `<div class="callout">These numbers are the single source of truth — the exported note's caps sentence and the compliance engine both read directly from these fields, so there's nothing to keep in sync manually. For a single-sleeve product like this one, "Sleeve min/max %" describes the whole portfolio's equity exposure band (often 100% min/max if fully invested); "Position min/max %" is the per-holding size range — a stock must be at least the minimum to be worth including, and no more than the maximum.</div>`;
+  html += `<div class="callout">These caps apply as hard rules during rebalancing/construction — keep them numeric and unambiguous (e.g. "10%" not "around ten percent") since they'll be checked mechanically once the compliance engine (see Roadmap) is built.</div>`;
   html += `</div>`;
 
   // Style sleeves editor (Product 1-style)
@@ -2245,13 +1071,6 @@ function renderEdit(id){
           <input type="text" value="${escAttr(s.indicativeNames||'')}" onchange="updateSleeveField('${id}',${i},'indicativeNames',this.value)" placeholder="Indicative names">
           <button class="row-remove" onclick="removeSleeve('${id}',${i})">×</button>
         </div>
-        ${capFieldsHtml(s.sleeveMinPct, s.sleeveMaxPct, s.positionMinPct, s.positionMaxPct, s.positionBasis,
-          `updateSleeveNumericField('${id}',${i},'sleeveMinPct'`,
-          `updateSleeveNumericField('${id}',${i},'sleeveMaxPct'`,
-          `updateSleeveNumericField('${id}',${i},'positionMinPct'`,
-          `updateSleeveNumericField('${id}',${i},'positionMaxPct'`,
-          `updateSleeveField('${id}',${i},'positionBasis'`
-        )}
         <textarea rows="2" style="margin-bottom:14px;" onchange="updateSleeveField('${id}',${i},'criteria',this.value)" placeholder="Selection criteria">${escText(s.criteria||'')}</textarea>
       `;
     });
@@ -2272,13 +1091,6 @@ function renderEdit(id){
           <div></div>
           <button class="row-remove" onclick="removeAllocRow('${id}','strategicAllocationRanges',${i})">×</button>
         </div>
-        ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionMinPct, a.positionMaxPct, a.positionBasis,
-          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMinPct'`,
-          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'sleeveMaxPct'`,
-          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionMinPct'`,
-          `updateAllocNumericField('${id}','strategicAllocationRanges',${i},'positionMaxPct'`,
-          `updateAllocField('${id}','strategicAllocationRanges',${i},'positionBasis'`
-        )}
       `;
     });
     html += weightSumBadge(p.strategicAllocationRanges);
@@ -2310,13 +1122,6 @@ function renderEdit(id){
               <div></div>
               <button class="row-remove" onclick="removeVariantAllocRow('${id}',${vi},${ai})">×</button>
             </div>
-            ${capFieldsHtml(a.sleeveMinPct, a.sleeveMaxPct, a.positionMinPct, a.positionMaxPct, a.positionBasis,
-              `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMinPct'`,
-              `updateVariantAllocNumericField('${id}',${vi},${ai},'sleeveMaxPct'`,
-              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionMinPct'`,
-              `updateVariantAllocNumericField('${id}',${vi},${ai},'positionMaxPct'`,
-              `updateVariantAllocField('${id}',${vi},${ai},'positionBasis'`
-            )}
           `;
         });
         html += weightSumBadge(v.allocation);
@@ -2373,19 +1178,8 @@ function updateConstructionRule(id, field, value){
   p.portfolioConstructionRules[field] = value;
   saveToLocalStorage();
 }
-function updateConstructionRuleNumeric(id, field, value){
-  const p = getProduct(id);
-  if(!p.portfolioConstructionRules) p.portfolioConstructionRules = {};
-  p.portfolioConstructionRules[field] = clampPct(value);
-  saveToLocalStorage();
-}
 function updateSleeveField(id, idx, field, value){
   getProduct(id).styleSleeves[idx][field] = value;
-  saveToLocalStorage();
-  refreshWeightBadges(id);
-}
-function updateSleeveNumericField(id, idx, field, value){
-  getProduct(id).styleSleeves[idx][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
@@ -2401,11 +1195,6 @@ function removeSleeve(id, idx){
 }
 function updateAllocField(id, listName, idx, field, value){
   getProduct(id)[listName][idx][field] = value;
-  saveToLocalStorage();
-  refreshWeightBadges(id);
-}
-function updateAllocNumericField(id, listName, idx, field, value){
-  getProduct(id)[listName][idx][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
@@ -2425,11 +1214,6 @@ function updateVariantField(id, vi, field, value){
 }
 function updateVariantAllocField(id, vi, ai, field, value){
   getProduct(id).variants[vi].allocation[ai][field] = value;
-  saveToLocalStorage();
-  refreshWeightBadges(id);
-}
-function updateVariantAllocNumericField(id, vi, ai, field, value){
-  getProduct(id).variants[vi].allocation[ai][field] = clampPct(value);
   saveToLocalStorage();
   refreshWeightBadges(id);
 }
@@ -2477,78 +1261,38 @@ function refreshWeightBadges(id){
 // VERSIONING, PUBLISH, AUDIT TRAIL, DIFF
 // ============================================================================
 
-async function publishProduct(id){
+function publishProduct(id){
   const entry = getEntry(id);
-  const p = entry.current;
-  const regime = p.regulatoryRegime || "india_sebi";
-
-  // Publish gating (ROADMAP.md Phase 1): blocked only if the *last recorded* compliance
-  // check for this product says Non-Compliant, and only for regimes where the checks
-  // are actually binding (india_sebi today). No maker-checker, no override-with-reason —
-  // both deliberately deferred. If no check has ever been run, Publish is still allowed:
-  // holdings/compliance is a separate, additive workflow from note publishing, not a
-  // hard prerequisite for it (a product can be published on its note content alone).
-  if(regime === "india_sebi"){
-    const lastCheck = getLastComplianceCheck(id);
-    if(lastCheck && lastCheck.compliance_check_result && lastCheck.compliance_check_result.compliant === false){
-      const proceedAnyway = confirm(
-        `The last compliance check for ${p.code} came back Non-Compliant (checked ${new Date(lastCheck.created_at).toLocaleString()}).\n\n` +
-        `Publish is normally blocked in this state — fix holdings and re-check on the Compliance screen first.\n\n` +
-        `Click Cancel to stop and go fix compliance, or OK to proceed anyway (no override-reason is logged for this yet — see ARCHITECTURE.md on maker-checker deferral).`
-      );
-      if(!proceedAnyway) { showView('compliance'); return; }
-    }
-  }
-
   const note = prompt("Optional note for this version (what changed / why publishing now):", "");
   if(note === null) return; // cancelled
   const versionNum = entry.versions.length + 1;
-  const snapshotData = JSON.parse(JSON.stringify(entry.current));
-  const timestamp = new Date().toISOString();
-
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-
-    const { error: verErr } = await sb.from('product_versions').insert({
-      product_id: id,
-      version_number: versionNum,
-      note: note || "",
-      data: snapshotData,
-      created_by: uid
-    });
-    if(verErr) throw verErr;
-
-    const { error: prodErr } = await sb.from('products')
-      .update({ status: "published", data: snapshotData, updated_by: uid })
-      .eq('id', id);
-    if(prodErr) throw prodErr;
-
-    entry.versions.push({ version: versionNum, timestamp, note: note || "", data: snapshotData });
-    entry.status = "published";
-    state.lastSaved = new Date().toISOString();
-    updateSyncStatus();
-    showHistory(id);
-  } catch(err){
-    showGlobalError("Publish failed for " + id + ": " + err.message + " — no new version was recorded. Your working draft is unchanged; try again.");
-  }
+  const snapshot = {
+    version: versionNum,
+    timestamp: new Date().toISOString(),
+    note: note || "",
+    data: JSON.parse(JSON.stringify(entry.current))
+  };
+  entry.versions.push(snapshot);
+  entry.status = "published";
+  saveToLocalStorage();
+  showHistory(id);
 }
 
-async function unpublishToDraft(id){
+function unpublishToDraft(id){
   const entry = getEntry(id);
   entry.status = "draft";
-  await persistProduct(id);
+  saveToLocalStorage();
   renderNav();
   showProduct(id);
 }
 
-async function revertToVersion(id, versionIdx){
+function revertToVersion(id, versionIdx){
   const entry = getEntry(id);
   const v = entry.versions[versionIdx];
   if(!confirm(`Revert working draft to v${v.version} (published ${new Date(v.timestamp).toLocaleString()})? This overwrites your current unsaved edits.`)) return;
   entry.current = JSON.parse(JSON.stringify(v.data));
   entry.status = "draft";
-  await persistProduct(id);
+  saveToLocalStorage();
   showProduct(id);
 }
 
@@ -2560,7 +1304,7 @@ function renderHistory(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>Version History — ${escText(p.name)}</h1>
+        <h1>Version History — ${p.name}</h1>
         <div class="topbar-sub">${entry.versions.length} published version(s) · current status: <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span></div>
       </div>
       <div class="toolbar">
@@ -2681,32 +1425,27 @@ function showDiff(id, fromIdx, toIdx){
 }
 
 // ============================================================================
-// BACKUP & SYNC — Supabase is now the single source of truth. This view is
-// read-only status + a manual JSON export for an off-platform backup copy.
-// Snapshot *loading* is intentionally removed in production: silently
-// overwriting in-memory state from a local file would desync it from the
-// database that every other user is also reading/writing.
+// BACKUP & SYNC — JSON snapshot export/import (manual Drive sync)
 // ============================================================================
 
 function renderBackupView(){
   const main = document.getElementById("main");
   const lastSaved = state.lastSaved ? new Date(state.lastSaved).toLocaleString() : "never";
   main.innerHTML = `
-    <div class="topbar">
-      <div><h1>Backup &amp; Sync</h1></div>
-      <div class="toolbar"><button class="btn" onclick="refreshFromSupabase()">↻ Refresh from Database</button></div>
-    </div>
-    <div class="callout">Product data and version history now live in Supabase (Postgres), shared across everyone signed in to this studio — not in this browser's local storage. This screen is a status readout plus an optional local JSON export for your own offline backup; it no longer controls what the app loads from.</div>
+    <div class="topbar"><h1>Backup &amp; Sync</h1></div>
+    <div class="callout">All edits and version history live in this browser's local storage, tied to this file. Local storage can be cleared by the browser or lost if you switch machines — export a JSON snapshot regularly and drop it in your Google Drive folder as the durable backup.</div>
     <div class="card">
-      <div class="kv"><div class="k">Last Synced (this tab)</div><div class="v">${lastSaved}</div></div>
+      <div class="kv"><div class="k">Last Auto-save</div><div class="v">${lastSaved}</div></div>
       <div class="kv"><div class="k">Products</div><div class="v">${Object.keys(state.products).length}</div></div>
       <div class="kv"><div class="k">Total Published Versions</div><div class="v">${Object.values(state.products).reduce((a,p)=>a+p.versions.length,0)}</div></div>
-      <div class="kv"><div class="k">Signed in as</div><div class="v">${currentUser ? escText(currentUser.email) : "—"}</div></div>
       <div style="margin-top:18px; display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn primary" onclick="downloadSnapshot()">Download JSON Snapshot (backup copy)</button>
+        <button class="btn primary" onclick="downloadSnapshot()">Download JSON Snapshot</button>
+        <button class="btn" onclick="document.getElementById('snapshotFileInput').click()">Load Snapshot from File</button>
+        <input type="file" id="snapshotFileInput" accept=".json" style="display:none" onchange="loadSnapshotFile(this.files[0])">
       </div>
-      <div class="callout warn" style="margin-top:16px;">This JSON download is a point-in-time export for your own records — it is not a restore mechanism. To recover or correct data, edit directly in the studio (writes go straight to Supabase) or ask an administrator to intervene at the database level.</div>
+      <div class="callout warn" style="margin-top:16px;">Google Drive folder for this studio: <a href="https://drive.google.com/drive/folders/1i8qgFZkuVCJRf-NEvuiyqqGq117yA0hA" target="_blank" style="color:var(--gold);">Portfolio Product Notes — Dashboard</a>. After downloading a snapshot, move/upload it into that folder to keep an off-machine backup. This dashboard cannot write to Drive directly from the browser — download, then upload manually (or ask me to push a snapshot there for you).</div>
     </div>
+    <div id="snapshotLoadResult"></div>
   `;
 }
 
@@ -2715,6 +1454,26 @@ function downloadSnapshot(){
   const blob = new Blob([dataStr], {type:"application/json"});
   const ts = new Date().toISOString().replace(/[:.]/g,"-");
   saveAs(blob, `vriksha_product_notes_snapshot_${ts}.json`);
+}
+
+function loadSnapshotFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const loaded = JSON.parse(e.target.result);
+      if(!loaded.products) throw new Error("File does not look like a valid snapshot (missing 'products' key).");
+      if(!confirm(`Load this snapshot? It contains ${Object.keys(loaded.products).length} products and will replace your current working state (drafts + version history).`)) return;
+      state = loaded;
+      saveToLocalStorage();
+      document.getElementById("snapshotLoadResult").innerHTML = `<div class="callout">Snapshot loaded successfully.</div>`;
+      renderNav();
+      showView("overview");
+    } catch(err){
+      document.getElementById("snapshotLoadResult").innerHTML = `<div class="callout danger">Failed to load snapshot: ${err.message}</div>`;
+    }
+  };
+  reader.readAsText(file);
 }
 
 
@@ -2732,8 +1491,6 @@ function checkExportLibs(need){
   if(need.includes("xlsx") && typeof XLSX === "undefined") missing.push("SheetJS (XLSX) — used for Excel export");
   if(need.includes("docx") && typeof docx === "undefined") missing.push("docx.js — used for Word export");
   if(need.includes("saveAs") && typeof saveAs === "undefined") missing.push("FileSaver.js — used to trigger the file download");
-  if(need.includes("jspdf") && (typeof window.jspdf === "undefined" || typeof window.jspdf.jsPDF === "undefined")) missing.push("jsPDF — used for PDF export");
-  if(need.includes("autotable") && typeof window.jspdf !== "undefined" && typeof window.jspdf.jsPDF !== "undefined" && typeof window.jspdf.jsPDF.API.autoTable === "undefined") missing.push("jsPDF-AutoTable — used to render tables in PDF export");
   if(missing.length){
     alert(
       "Export couldn't run — a required library didn't load from the CDN:\n\n" +
@@ -2770,7 +1527,8 @@ function productToRows(p, entry){
   if(p.portfolioConstructionRules){
     const r = p.portfolioConstructionRules;
     rows.push(["Stock Count Range", r.stockCountRange||""]);
-    rows.push(["Caps & Position Sizing", formatCapsSentence(r)]);
+    rows.push(["Single-Stock Cap", r.singleStockCap||""]);
+    rows.push(["Sector Cap", r.sectorCap||""]);
     rows.push(["Cash Buffer", r.cashBuffer||""]);
   }
   return rows;
@@ -2865,273 +1623,6 @@ function exportAllXlsx(){
   }
 }
 
-// ============================================================================
-// PDF EXPORT — Vriksha-branded document theme (light, print-appropriate)
-// ============================================================================
-// Shared color/typography constants translating the app's dark web palette
-// into a light document theme: white background (correct for print/email),
-// forest green for headings, moss for rules/accents, gold as the highlight
-// accent — same brand identity, inverted for a printed page rather than a
-// literal dark-mode copy.
-const PDF_THEME = {
-  forest: [15, 26, 18],      // #0f1a12 — headings
-  moss:   [45, 74, 50],      // #2d4a32 — section rules, sub-headings
-  sage:   [90, 110, 94],     // darkened from #7a9e7e for legibility on white
-  gold:   [150, 122, 45],    // darkened from #c4a84f for legibility on white
-  ink:    [30, 38, 32],      // body text — near-black, slightly warm
-  faint:  [120, 130, 122],   // meta text, footers
-  pageWidth: 210,            // A4 mm
-  margin: 18
-};
-
-function pdfNewDoc(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  return doc;
-}
-
-function pdfHeader(doc, title, subtitle){
-  const m = PDF_THEME.margin;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...PDF_THEME.gold);
-  doc.text("VRIKSHA", m, 14);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...PDF_THEME.sage);
-  doc.text("PRODUCT NOTE STUDIO", m, 18);
-  doc.setDrawColor(...PDF_THEME.moss);
-  doc.setLineWidth(0.4);
-  doc.line(m, 21, PDF_THEME.pageWidth - m, 21);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(17);
-  doc.setTextColor(...PDF_THEME.forest);
-  const titleLines = doc.splitTextToSize(title, PDF_THEME.pageWidth - 2*m);
-  doc.text(titleLines, m, 30);
-  let y = 30 + titleLines.length * 6.5;
-  if(subtitle){
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9.5);
-    doc.setTextColor(...PDF_THEME.sage);
-    doc.text(subtitle, m, y);
-    y += 6;
-  }
-  return y + 2;
-}
-
-function pdfFooter(doc, footnote){
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i=1;i<=pageCount;i++){
-    doc.setPage(i);
-    const m = PDF_THEME.margin;
-    const pageH = doc.internal.pageSize.getHeight();
-    doc.setDrawColor(...PDF_THEME.moss);
-    doc.setLineWidth(0.2);
-    doc.line(m, pageH-14, PDF_THEME.pageWidth-m, pageH-14);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...PDF_THEME.faint);
-    if(footnote){
-      const lines = doc.splitTextToSize(footnote, PDF_THEME.pageWidth - 2*m - 20);
-      doc.text(lines, m, pageH-10);
-    }
-    doc.text(`${i} / ${pageCount}`, PDF_THEME.pageWidth-m, pageH-10, {align:"right"});
-  }
-}
-
-function pdfSectionHeading(doc, text, y){
-  const m = PDF_THEME.margin;
-  if(y > 260){ doc.addPage(); y = 24; }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11.5);
-  doc.setTextColor(...PDF_THEME.forest);
-  doc.text(text.toUpperCase(), m, y);
-  doc.setDrawColor(...PDF_THEME.gold);
-  doc.setLineWidth(0.6);
-  doc.line(m, y+1.5, m+14, y+1.5);
-  return y + 7;
-}
-
-function pdfBody(doc, text, y, opts){
-  opts = opts || {};
-  const m = PDF_THEME.margin;
-  const size = opts.size || 9.5;
-  doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-  doc.setFontSize(size);
-  doc.setTextColor(...(opts.color || PDF_THEME.ink));
-  const lines = doc.splitTextToSize(text || "—", PDF_THEME.pageWidth - 2*m);
-  lines.forEach(line=>{
-    if(y > 275){ doc.addPage(); y = 24; }
-    doc.text(line, m, y);
-    y += size*0.42 + 2.2;
-  });
-  return y + 2;
-}
-
-function pdfKv(doc, k, v, y){
-  const m = PDF_THEME.margin;
-  if(y > 272){ doc.addPage(); y = 24; }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...PDF_THEME.moss);
-  doc.text(k + ":", m, y);
-  const kw = doc.getTextWidth(k + ":  ");
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...PDF_THEME.ink);
-  const lines = doc.splitTextToSize(String(v==null?"—":v), PDF_THEME.pageWidth - 2*m - kw);
-  doc.text(lines, m + kw, y);
-  return y + Math.max(lines.length,1)*4.3 + 2.5;
-}
-
-function pdfBullets(doc, items, y){
-  const m = PDF_THEME.margin;
-  (items||[]).forEach(item=>{
-    if(y > 272){ doc.addPage(); y = 24; }
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.setTextColor(...PDF_THEME.gold);
-    doc.text("—", m, y);
-    doc.setTextColor(...PDF_THEME.ink);
-    const lines = doc.splitTextToSize(item, PDF_THEME.pageWidth - 2*m - 6);
-    doc.text(lines, m+5, y);
-    y += lines.length*4.3 + 2;
-  });
-  return y + 2;
-}
-
-function pdfTable(doc, head, rows, y){
-  doc.autoTable({
-    startY: y,
-    head: [head],
-    body: rows,
-    margin: {left: PDF_THEME.margin, right: PDF_THEME.margin},
-    styles: {font:"helvetica", fontSize:8.3, textColor:PDF_THEME.ink, cellPadding:2.2, lineColor:[220,225,220], lineWidth:0.2},
-    headStyles: {fillColor:PDF_THEME.moss, textColor:[255,255,255], fontStyle:"bold"},
-    alternateRowStyles: {fillColor:[245,248,245]}
-  });
-  return doc.lastAutoTable.finalY + 6;
-}
-
-// ---------- Full-note PDF (content mirrors exportDocx exactly) ----------
-function exportPdf(pid){
-  if(!checkExportLibs(["jspdf","autotable","saveAs"])) return;
-  try{
-    const p = getProduct(pid);
-    const entry = getEntry(pid);
-    const doc = pdfNewDoc();
-    let y = pdfHeader(doc, p.name, `${p.category}  ·  Code: ${p.code}  ·  Status: ${entry.status.toUpperCase()}  ·  v${entry.versions.length}`);
-
-    y = pdfSectionHeading(doc, "Key Facts", y);
-    y = pdfKv(doc, "Risk Profile", p.riskProfile, y);
-    y = pdfKv(doc, "Asset Classes", (p.assetClasses||[]).join("; "), y);
-    y = pdfKv(doc, "Benchmark", p.benchmark, y);
-    y = pdfKv(doc, "Rebalance Frequency", p.rebalanceFrequency, y);
-    y = pdfKv(doc, "Minimum Investment", p.minInvestment||"—", y);
-    y = pdfKv(doc, "Fees", p.fees||"—", y);
-
-    y = pdfSectionHeading(doc, "Investment Objective", y);
-    y = pdfBody(doc, p.objective, y);
-
-    y = pdfSectionHeading(doc, "Philosophy & Methodology", y);
-    y = pdfBody(doc, p.philosophy || p.selectionMethodology || "", y);
-    if(p.portfolioConstruction) y = pdfKv(doc, "Portfolio Construction", p.portfolioConstruction, y);
-    if(p.portfolioConstructionNote) y = pdfBody(doc, p.portfolioConstructionNote, y);
-    if(p.portfolioConstructionRules){
-      const r = p.portfolioConstructionRules;
-      y = pdfKv(doc, "Stock Count Range", r.stockCountRange||"—", y);
-      y = pdfKv(doc, "Caps & Position Sizing", formatCapsSentence(r), y);
-      y = pdfKv(doc, "Cash Buffer", r.cashBuffer||"—", y);
-    }
-
-    if(p.styleSleeves){
-      y = pdfSectionHeading(doc, "Style Sleeves", y);
-      y = pdfTable(doc, ["Sleeve","Weight Range","Universe"], p.styleSleeves.map(s=>[s.name, s.weightRange||"—", s.universe||"—"]), y);
-    }
-
-    if(p.strategicAllocationRanges){
-      y = pdfSectionHeading(doc, "Strategic Allocation Ranges", y);
-      y = pdfTable(doc, ["Sleeve","Target Range"], p.strategicAllocationRanges.map(a=>[a.sleeve, a.range]), y);
-    }
-
-    if(p.variants){
-      y = pdfSectionHeading(doc, "Risk-Profile Variants", y);
-      p.variants.forEach(v=>{
-        if(y > 260){ doc.addPage(); y = 24; }
-        doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...PDF_THEME.moss);
-        doc.text(v.profile, PDF_THEME.margin, y); y += 5.5;
-        if(v.targetInvestor) y = pdfBody(doc, v.targetInvestor, y, {size:9});
-        if(v.factorMix){
-          y = pdfKv(doc, "Factor Mix", v.factorMix, y);
-          y = pdfKv(doc, "Universe", v.universe, y);
-          y = pdfKv(doc, "Stock Count", v.stockCount, y);
-        }
-        if(v.allocation){
-          y = pdfTable(doc, ["Sleeve","Target Range"], v.allocation.map(a=>[a.sleeve, a.range]), y);
-          if(v.expectedEquityLikeExposure) y = pdfKv(doc, "Equity-like Exposure", v.expectedEquityLikeExposure, y);
-        }
-        y += 2;
-      });
-    }
-
-    if(p.goalFramework){
-      y = pdfSectionHeading(doc, "Life Goal Framework (Glide Path)", y);
-      p.goalFramework.forEach(g=>{
-        if(y > 265){ doc.addPage(); y = 24; }
-        doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(...PDF_THEME.moss);
-        doc.text(`${g.goal} — ${g.horizonBand}`, PDF_THEME.margin, y); y += 5;
-        y = pdfBody(doc, g.glidePath, y, {size:9});
-      });
-    }
-
-    y = pdfSectionHeading(doc, "Suitability", y);
-    y = pdfBody(doc, p.suitability, y);
-
-    y = pdfSectionHeading(doc, "Key Risks", y);
-    y = pdfBullets(doc, p.keyRisks, y);
-
-    y = pdfSectionHeading(doc, "Tax & Fees", y);
-    y = pdfKv(doc, "Fees", p.fees||"—", y);
-    y = pdfKv(doc, "Tax Treatment", p.taxNote || "To be detailed in a future revision.", y);
-
-    pdfFooter(doc, `Product code ${p.code} · Status: ${entry.status.toUpperCase()} · Internal / product-development document. Not investor-facing until reviewed for SEBI Research Analyst / smallcase compliance requirements, final fee structure, and tax disclosures.`);
-    doc.save(`${p.code}_${p.id}_ProductNote.pdf`);
-  } catch(err){
-    console.error("exportPdf failed", err);
-    alert("PDF export failed unexpectedly: " + (err && err.message ? err.message : err) + "\n\nCheck the browser console for details.");
-  }
-}
-
-// ---------- Short-form client summary PDF (fixed field set, 1-2 pages) ----------
-function exportClientSummaryPdf(pid){
-  if(!checkExportLibs(["jspdf","autotable","saveAs"])) return;
-  try{
-    const p = getProduct(pid);
-    const doc = pdfNewDoc();
-    let y = pdfHeader(doc, p.shortName || p.name, p.category);
-
-    y = pdfSectionHeading(doc, "Objective", y);
-    y = pdfBody(doc, p.objective, y);
-
-    y = pdfSectionHeading(doc, "Key Facts", y);
-    y = pdfKv(doc, "Risk Profile", p.riskProfile, y);
-    y = pdfKv(doc, "Benchmark", p.benchmark, y);
-    y = pdfKv(doc, "Minimum Investment", p.minInvestment||"—", y);
-
-    y = pdfSectionHeading(doc, "Suitability", y);
-    y = pdfBody(doc, p.suitability, y);
-
-    y = pdfSectionHeading(doc, "Key Risks", y);
-    y = pdfBullets(doc, (p.keyRisks||[]).slice(0,5), y);
-
-    pdfFooter(doc, "Summary overview for discussion purposes — not a complete product note. Full terms, fees, and risk disclosures available on request.");
-    doc.save(`${p.code}_${p.id}_ClientSummary.pdf`);
-  } catch(err){
-    console.error("exportClientSummaryPdf failed", err);
-    alert("Client summary PDF export failed unexpectedly: " + (err && err.message ? err.message : err) + "\n\nCheck the browser console for details.");
-  }
-}
-
 function exportDocx(pid){
   if(!checkExportLibs(["docx","saveAs"])) return Promise.resolve();
   try{
@@ -3177,7 +1668,8 @@ function exportDocx(pid){
   if(p.portfolioConstructionRules){
     const r = p.portfolioConstructionRules;
     children.push(kvPara("Stock Count Range", r.stockCountRange||"—"));
-    children.push(kvPara("Caps & Position Sizing", formatCapsSentence(r)));
+    children.push(kvPara("Single-Stock Cap", r.singleStockCap||"—"));
+    children.push(kvPara("Sector Cap", r.sectorCap||"—"));
     children.push(kvPara("Cash Buffer", r.cashBuffer||"—"));
   }
 
@@ -3270,77 +1762,13 @@ function exportDocx(pid){
 }
 
 // ============================================================================
-// INIT — auth-gated boot sequence
+// INIT
 // ============================================================================
-// Flow: show a loading spinner immediately -> ask Supabase for the current
-// session -> if logged in, load all products/versions and render the app;
-// if not, show the login screen. onAuthStateChange keeps this in sync for
-// the lifetime of the tab (sign-in, sign-out, token refresh, etc).
+initState();
+initSidebarCollapse();
+renderNav();
+showView('overview');
 
-let appBooted = false; // guards against double-initializing the app view on repeated SIGNED_IN events
-let authListenerFired = false; // guards the boot-timeout fallback below
-
-function showBootError(msg){
-  document.getElementById("bootLoading").style.display = "none";
-  document.getElementById("loginScreen").style.display = "none";
-  document.getElementById("appRoot").style.display = "none";
-  document.getElementById("bootErrorMsg").textContent = msg;
-  document.getElementById("bootError").style.display = "flex";
-}
-
-async function bootAppForUser(user){
-  currentUser = { id: user.id, email: user.email };
-  try {
-    await loadAllFromSupabase();
-    showAppScreen();
-    initSidebarCollapse();
-    renderNav();
-    updateSyncStatus();
-    if(!appBooted){
-      showView('overview');
-      appBooted = true;
-    }
-  } catch(err){
-    showAppScreen();
-    showGlobalError("Could not load product data from the database: " + err.message + " — try Refresh, or check your connection.");
-  }
-}
-
-// If Supabase failed to initialize (CDN blocked, library error), stop here with a
-// visible error instead of leaving the spinner running with a null `supabase` object
-// that would throw on first use anyway.
-if (supabaseInitError) {
-  showBootError(supabaseInitError.message + "\n\nTry reloading the page. If this keeps happening, the network you're on may be blocking cdn.jsdelivr.net.");
-} else {
-  try {
-    sb.auth.onAuthStateChange((event, session) => {
-      authListenerFired = true;
-      if(session && session.user){
-        bootAppForUser(session.user);
-      } else {
-        currentUser = null;
-        appBooted = false;
-        state = { products: {}, templates: {}, holdings: {}, complianceChecks: {}, lastSaved: null };
-        showLoginScreen();
-      }
-    });
-  } catch(err){
-    console.error("Failed to register auth listener:", err);
-    showBootError("Failed to start the authentication check: " + err.message + "\n\nTry reloading the page.");
-  }
-
-  // onAuthStateChange is documented to fire once on page load with the restored
-  // session (if any), so no separate getSession() bootstrap call should be needed.
-  // But relying on a single library callback with zero fallback is exactly what
-  // caused the app to get stuck on the loading spinner before — if it hasn't fired
-  // within 8 seconds (slow network, transient Supabase issue, unexpected library
-  // behavior), show an error instead of spinning forever.
-  setTimeout(() => {
-    if (!authListenerFired) {
-      showBootError("The app is taking longer than expected to start (no response from Supabase after 8 seconds). This usually means a slow or blocked network connection to " + SUPABASE_URL + ".");
-    }
-  }, 8000);
-}
 </script>
 </body>
 </html>

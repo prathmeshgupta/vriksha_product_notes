@@ -241,7 +241,6 @@
 
   .editable-table-row{ display:grid; grid-template-columns:1fr 110px 110px 34px; gap:8px; margin-bottom:6px; align-items:center; }
   .editable-table-row.four{ grid-template-columns:1fr 1.4fr 90px 90px 34px; }
-  .editable-table-row.five{ grid-template-columns:1fr 1.6fr 1fr 100px 34px; }
   .row-remove{
     background:transparent; border:1px solid var(--moss); color:var(--text-faint); width:30px; height:30px;
     border-radius:2px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem;
@@ -437,7 +436,6 @@
     <div class="nav-item" onclick="showView('create')" id="nav-create">+ New Product</div>
     <div class="nav-item" onclick="showView('templates')" id="nav-templates">Manage Templates</div>
     <div class="nav-item" onclick="showView('archive')" id="nav-archive">Archived Products</div>
-    <div class="nav-item" onclick="showView('compliance')" id="nav-compliance">Compliance</div>
     <div class="nav-item" onclick="showView('csv')" id="nav-csv">CSV Constituent Upload</div>
     <div class="nav-item" onclick="showView('backup')" id="nav-backup">Backup &amp; Sync</div>
     <div class="nav-item" onclick="showView('roadmap')" id="nav-roadmap">Upgrade Roadmap</div>
@@ -492,7 +490,7 @@ try {
 // ---------- STATE ----------
 // state.products[id] = { current: {...editableFields}, status: 'draft'|'published', archived: bool, versions: [{...snapshot, meta}] }
 // Shape is identical to the localStorage-era version so every render/edit function below is unchanged.
-let state = { products: {}, templates: {}, holdings: {}, complianceChecks: {}, lastSaved: null };
+let state = { products: {}, templates: {}, lastSaved: null };
 let currentUser = null; // { id, email }
 
 // ---------- AUTH ----------
@@ -619,13 +617,8 @@ async function loadAllFromSupabase(){
 
   const newProducts = {};
   (productRows || []).forEach(row=>{
-    // regulatory_regime is a real DB column (drives compliance-check scoping — see
-    // ARCHITECTURE.md §2.4) but the editor works off the `data` blob, so it's mirrored
-    // onto data.regulatoryRegime here and mirrored back on every persist below.
-    const current = row.data;
-    current.regulatoryRegime = row.regulatory_regime || "india_sebi";
     newProducts[row.id] = {
-      current,
+      current: row.data,
       status: row.status,
       archived: !!row.archived,
       versions: versionsByProduct[row.id] || []
@@ -645,51 +638,7 @@ async function loadAllFromSupabase(){
   });
   state.templates = newTemplates;
 
-  // Holdings: current/live constituent list per product. Soft-fail like templates —
-  // holdings only matter on the Compliance screen, shouldn't block the whole app.
-  let holdingRows = [];
-  try {
-    const { data: hRows, error: hErr } = await sb.from('portfolio_holdings').select('*');
-    if(hErr) throw hErr;
-    holdingRows = hRows || [];
-  } catch(err){
-    console.error("Failed to load portfolio holdings:", err);
-    showGlobalError("Could not load portfolio holdings: " + err.message + " — the Compliance screen may be incomplete until this clears.");
-  }
-  const newHoldings = {};
-  holdingRows.forEach(row=>{
-    if(!newHoldings[row.product_id]) newHoldings[row.product_id] = [];
-    newHoldings[row.product_id].push(row);
-  });
-  state.holdings = newHoldings;
-
-  // Compliance check history: most recent check per product is what gates Publish.
-  let historyRows = [];
-  try {
-    const { data: cRows, error: cErr } = await sb.from('portfolio_holdings_history')
-      .select('*')
-      .order('rebalance_number', { ascending: true });
-    if(cErr) throw cErr;
-    historyRows = cRows || [];
-  } catch(err){
-    console.error("Failed to load compliance check history:", err);
-    showGlobalError("Could not load compliance check history: " + err.message + " — Publish gating may not reflect the latest check until this clears.");
-  }
-  const newChecks = {};
-  historyRows.forEach(row=>{
-    if(!newChecks[row.product_id]) newChecks[row.product_id] = [];
-    newChecks[row.product_id].push(row);
-  });
-  state.complianceChecks = newChecks;
-
   state.lastSaved = new Date().toISOString();
-}
-
-function getHoldings(productId){ return state.holdings[productId] || []; }
-function getComplianceHistory(productId){ return state.complianceChecks[productId] || []; }
-function getLastComplianceCheck(productId){
-  const hist = getComplianceHistory(productId);
-  return hist.length ? hist[hist.length-1] : null;
 }
 
 function getAllTemplates(){
@@ -712,8 +661,6 @@ async function refreshFromSupabase(){
     else if(currentView==="archive") renderArchiveView();
     else if(currentView==="create") renderCreateView();
     else if(currentView==="templates") renderTemplatesView();
-    else if(currentView==="compliance") renderComplianceOverview();
-    else if(currentView==="productCompliance" && currentProductId) renderProductCompliance(currentProductId);
     updateSyncStatus();
   } catch(err){
     showGlobalError("Refresh failed: " + err.message);
@@ -746,7 +693,6 @@ async function persistProduct(id){
         name: entry.current.name,
         short_name: entry.current.shortName || null,
         category: entry.current.category,
-        regulatory_regime: entry.current.regulatoryRegime || "india_sebi",
         updated_by: uid
       })
       .eq('id', id);
@@ -819,7 +765,6 @@ async function insertNewProduct(cloned){
       status: "draft",
       archived: false,
       data: cloned,
-      regulatory_regime: cloned.regulatoryRegime || "india_sebi",
       updated_by: uid
     });
     if(error) throw error;
@@ -840,7 +785,6 @@ function blankProductShape(){
     name: "",
     shortName: "",
     category: "Discretionary — Single Asset Class (Equity)",
-    regulatoryRegime: "india_sebi",
     assetClasses: [],
     objective: "",
     philosophy: "",
@@ -890,211 +834,6 @@ async function createProductFromExisting(sourceProductId, newName, newCode) {
   cloned.name = newName;
   cloned.shortName = newName;
   return insertNewProduct(cloned);
-}
-
-// ---------- COMPLIANCE ENGINE (Phase 1) ----------
-// Checks are scoped by regime (products.regulatory_regime / p.regulatoryRegime) — see
-// ARCHITECTURE.md §2.4. Only india_sebi runs the full SEBI-oriented check set; every
-// other regime runs just the universal weights-sum-to-100% check until that regime's
-// own rules are defined (ROADMAP.md Phase 1).
-
-// Holdings CRUD — draft action, same as editing a product note. Nothing here is
-// checked or published automatically.
-async function addHolding(productId, holding){
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings').insert({
-      product_id: productId,
-      instrument_code: holding.instrument_code,
-      instrument_name: holding.instrument_name,
-      sleeve: holding.sleeve || null,
-      weight_pct: holding.weight_pct,
-      sector: holding.sector || null,
-      updated_by: uid
-    }).select().single();
-    if(error) throw error;
-    if(!state.holdings[productId]) state.holdings[productId] = [];
-    state.holdings[productId].push(data);
-  } catch(err){
-    showGlobalError("Failed to add holding: " + err.message);
-    throw err;
-  }
-}
-
-async function updateHolding(holdingId, productId, fields){
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings')
-      .update({ ...fields, updated_by: uid })
-      .eq('id', holdingId)
-      .select().single();
-    if(error) throw error;
-    const list = state.holdings[productId] || [];
-    const idx = list.findIndex(h=>h.id===holdingId);
-    if(idx >= 0) list[idx] = data;
-  } catch(err){
-    showGlobalError("Failed to update holding: " + err.message);
-    throw err;
-  }
-}
-
-async function deleteHolding(holdingId, productId){
-  try {
-    const { error } = await sb.from('portfolio_holdings').delete().eq('id', holdingId);
-    if(error) throw error;
-    state.holdings[productId] = (state.holdings[productId]||[]).filter(h=>h.id!==holdingId);
-  } catch(err){
-    showGlobalError("Failed to delete holding: " + err.message);
-    throw err;
-  }
-}
-
-// Pulls the applicable position-size and sector-cap thresholds out of a product's note,
-// regardless of which of the 4 archetype shapes it uses (single-sleeve construction
-// rules, style sleeves, strategic allocation ranges, or risk-variant allocations).
-// Returns { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct } using the
-// most specific numbers available — sleeve/variant-level caps take priority over the
-// top-level portfolioConstructionRules when both exist, since they're more targeted.
-function getEffectiveCapThresholds(p){
-  const rules = p.portfolioConstructionRules || {};
-  let positionMinPct = rules.positionMinPct ?? null;
-  let positionMaxPct = rules.positionMaxPct ?? null;
-  let positionBasis = rules.positionBasis || "portfolio";
-  const sectorCapMaxPct = rules.sectorCapMaxPct ?? null;
-
-  // If a product uses per-sleeve or per-variant caps instead of (or in addition to)
-  // top-level rules, take the tightest (lowest max, highest min) across all of them —
-  // conservative by design, since compliance should flag against the strictest
-  // applicable limit, not the loosest.
-  const sleeveLike = p.styleSleeves || p.strategicAllocationRanges ||
-    (p.variants ? p.variants.flatMap(v=>v.allocation||[]) : null);
-  if(sleeveLike && sleeveLike.length){
-    sleeveLike.forEach(s=>{
-      if(s.positionMinPct != null) positionMinPct = positionMinPct == null ? s.positionMinPct : Math.max(positionMinPct, s.positionMinPct);
-      if(s.positionMaxPct != null) positionMaxPct = positionMaxPct == null ? s.positionMaxPct : Math.min(positionMaxPct, s.positionMaxPct);
-      if(s.positionBasis) positionBasis = s.positionBasis;
-    });
-  }
-  return { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct };
-}
-
-// Runs the regime-appropriate check set against a product's current holdings (not yet
-// published — this checks whatever is currently in portfolio_holdings for that product).
-// Returns { compliant: bool, checks: [{name, status, detail}], regime }.
-function runComplianceCheck(productId){
-  const p = getProduct(productId);
-  const holdings = getHoldings(productId);
-  const regime = p.regulatoryRegime || "india_sebi";
-  const checks = [];
-
-  // Universal check — applies regardless of regime.
-  const totalWeight = holdings.reduce((sum,h)=>sum + (Number(h.weight_pct)||0), 0);
-  const weightOk = holdings.length > 0 && Math.abs(totalWeight - 100) <= 0.5;
-  checks.push({
-    name: "Weights sum to 100%",
-    status: holdings.length === 0 ? "no-data" : (weightOk ? "pass" : "fail"),
-    detail: holdings.length === 0
-      ? "No holdings entered yet."
-      : `Current total: ${totalWeight.toFixed(2)}% (tolerance ±0.5%).`
-  });
-
-  if(regime === "india_sebi"){
-    const { positionMinPct, positionMaxPct, positionBasis, sectorCapMaxPct } = getEffectiveCapThresholds(p);
-
-    // Single-stock concentration cap.
-    if(positionMaxPct != null){
-      const basisLabel = positionBasis === "sleeve" ? "within its sleeve" : "of portfolio";
-      const breaches = holdings.filter(h => Number(h.weight_pct) > positionMaxPct);
-      checks.push({
-        name: `Single-stock cap (max ${positionMaxPct}% ${basisLabel})`,
-        status: breaches.length ? "fail" : "pass",
-        detail: breaches.length
-          ? `Breaches: ${breaches.map(h=>`${h.instrument_name || h.instrument_code} at ${h.weight_pct}%`).join(", ")}.`
-          : "No holding exceeds the cap."
-      });
-    } else {
-      checks.push({ name: "Single-stock cap", status: "no-data", detail: "No position-size maximum is set on this product's note — nothing to check against." });
-    }
-
-    // Sector concentration cap.
-    if(sectorCapMaxPct != null){
-      const bySector = {};
-      holdings.forEach(h=>{
-        if(!h.sector) return;
-        bySector[h.sector] = (bySector[h.sector]||0) + (Number(h.weight_pct)||0);
-      });
-      const breaches = Object.entries(bySector).filter(([,w])=>w > sectorCapMaxPct);
-      checks.push({
-        name: `Sector cap (max ${sectorCapMaxPct}%)`,
-        status: breaches.length ? "fail" : "pass",
-        detail: breaches.length
-          ? `Breaches: ${breaches.map(([s,w])=>`${s} at ${w.toFixed(1)}%`).join(", ")}.`
-          : (holdings.some(h=>!h.sector) ? "No breach among holdings with a sector tagged. Some holdings have no sector set." : "No sector exceeds the cap.")
-      });
-    } else {
-      checks.push({ name: "Sector cap", status: "no-data", detail: "No sector cap is set on this product's note — nothing to check against." });
-    }
-
-    // Risk-profile-to-allocation consistency — only meaningful for Conservative variants
-    // with an explicit equity-like exposure expectation; otherwise no-data, not a failure.
-    if(p.variants){
-      const conservative = p.variants.find(v => (v.profile||"").toLowerCase().includes("conservative"));
-      if(conservative && conservative.expectedEquityLikeExposure){
-        checks.push({
-          name: "Risk-profile-to-allocation consistency (Conservative)",
-          status: "no-data",
-          detail: `Expected equity-like exposure for Conservative: ${conservative.expectedEquityLikeExposure}. Not mechanically checked against live holdings yet — confirm manually.`
-        });
-      }
-    }
-
-    // SEBI disclosure checklist — human-confirmed, not mechanically checkable.
-    checks.push({
-      name: "SEBI disclosure requirement checklist",
-      status: "manual",
-      detail: "Human-confirmed item — not automatically checked. Confirm required disclosures are current before publishing."
-    });
-  } else {
-    checks.push({
-      name: `Regime-specific checks (${regime})`,
-      status: "no-data",
-      detail: "No regime-specific rules are defined for this regime yet — only the universal weights check applies. See ARCHITECTURE.md §2.4."
-    });
-  }
-
-  // Compliant only if every mechanically-checkable item passes; "no-data" and "manual"
-  // items don't block, since they either have nothing to check or require a human.
-  const compliant = checks.every(c => c.status !== "fail");
-  return { compliant, checks, regime, checkedAt: new Date().toISOString() };
-}
-
-// Persists a compliance check result as a row in portfolio_holdings_history — this is
-// both the audit log entry and the source of truth Publish gating reads from.
-async function recordComplianceCheck(productId){
-  const result = runComplianceCheck(productId);
-  const holdings = getHoldings(productId);
-  const hist = getComplianceHistory(productId);
-  const nextRebalanceNumber = hist.length ? Math.max(...hist.map(h=>h.rebalance_number)) + 1 : 1;
-  try {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData && userData.user ? userData.user.id : null;
-    const { data, error } = await sb.from('portfolio_holdings_history').insert({
-      product_id: productId,
-      rebalance_number: nextRebalanceNumber,
-      holdings_snapshot: holdings,
-      compliance_check_result: result,
-      created_by: uid
-    }).select().single();
-    if(error) throw error;
-    if(!state.complianceChecks[productId]) state.complianceChecks[productId] = [];
-    state.complianceChecks[productId].push(data);
-    return result;
-  } catch(err){
-    showGlobalError("Failed to record compliance check: " + err.message);
-    throw err;
-  }
 }
 
 // ---------- ARCHIVE / UNARCHIVE ----------
@@ -1162,7 +901,7 @@ function renderNav(){
       const entry = getEntry(p.id);
       const el = document.createElement("div");
       el.className = "nav-item" + (currentProductId===p.id && (currentView==="product"||currentView==="edit"||currentView==="history") ? " active" : "");
-      el.innerHTML = `<span>${escText(p.shortName || p.name)}<br><span class="code">${escText(p.code)} · ${escText(p.id)}</span></span><span class="status-dot ${entry.status}" title="${entry.status}"></span>`;
+      el.innerHTML = `<span>${p.shortName || p.name}<br><span class="code">${p.code} · ${p.id}</span></span><span class="status-dot ${entry.status}" title="${entry.status}"></span>`;
       el.onclick = ()=>showProduct(p.id);
       list.appendChild(el);
     });
@@ -1197,7 +936,6 @@ function showView(v){
   if(v==="archive") renderArchiveView();
   if(v==="create") renderCreateView();
   if(v==="templates") renderTemplatesView();
-  if(v==="compliance") renderComplianceOverview();
   renderNav();
 }
 
@@ -1251,11 +989,11 @@ function renderOverview(){
     card.className = "p-card";
     card.onclick = ()=>showProduct(p.id);
     card.innerHTML = `
-      <span class="tag ${isSys?'sys':''}">${escText(p.id)} · ${escText(p.code)} <span class="status-pill ${entry.status}" style="margin-left:auto;"><span class="dot"></span>${entry.status}</span></span>
-      <h3>${escText(p.name)}</h3>
-      <p>${escText((p.objective||"").slice(0,130))}...</p>
+      <span class="tag ${isSys?'sys':''}">${p.id} · ${p.code} <span class="status-pill ${entry.status}" style="margin-left:auto;"><span class="dot"></span>${entry.status}</span></span>
+      <h3>${p.name}</h3>
+      <p>${(p.objective||"").slice(0,130)}...</p>
       <div class="meta">
-        <span class="risk-badge ${riskClass(p.riskProfile)}">${escText(p.riskProfile)}</span>
+        <span class="risk-badge ${riskClass(p.riskProfile)}">${p.riskProfile}</span>
         <span>${p.assetClasses.length} asset class${p.assetClasses.length>1?'es':''}</span>
         <span>v${entry.versions.length}</span>
       </div>
@@ -1504,26 +1242,6 @@ async function handleSaveTemplate(){
     alert("Structure field is not valid JSON: " + err.message);
     return;
   }
-  // Minimal shape guard: a product created from a template missing these fields
-  // crashes renderNav() (category.startsWith, assetClasses.length) on EVERY view
-  // transition — which breaks the app for every signed-in user, not just the one who
-  // made the mistake. This is deliberately narrow (just the fields that are actually
-  // dereferenced unconditionally elsewhere), not a full schema validator.
-  const requiredFields = [
-    ["category", v => typeof v === "string" && v.length > 0],
-    ["assetClasses", v => Array.isArray(v)],
-    ["code", v => typeof v === "string"],
-    ["name", v => typeof v === "string"]
-  ];
-  const missing = requiredFields.filter(([field, check]) => !check(parsedData[field]));
-  if(missing.length){
-    alert(
-      "Structure is missing or has the wrong type for required field(s): " + missing.map(([f])=>f).join(", ") + ".\n\n" +
-      "These fields are read unconditionally elsewhere in the app (e.g. the sidebar nav), so a template missing them would break the app for every signed-in user as soon as a product is created from it. " +
-      "Add at least: category (string), assetClasses (array), code (string), name (string)."
-    );
-    return;
-  }
   const isNew = editingTemplateId === "__new__";
   const id = isNew ? nextTemplateId() : editingTemplateId;
   const btn = event && event.target;
@@ -1574,158 +1292,6 @@ function nextTemplateId(){
   return "T" + n;
 }
 
-// ---------- COMPLIANCE SCREENS ----------
-function showProductCompliance(id){
-  currentView = "productCompliance";
-  currentProductId = id;
-  renderProductCompliance(id);
-  renderNav();
-}
-
-function renderComplianceOverview(){
-  const main = document.getElementById("main");
-  const all = getAllProducts();
-  main.innerHTML = `
-    <div class="topbar"><div><h1>Compliance</h1><div class="topbar-sub">Holdings, checks, and publish-gating status across all active products</div></div></div>
-    <div class="callout">Editing holdings here is a draft action — nothing is checked or published automatically. Run "Check Compliance" to evaluate current draft holdings against this product's regime-appropriate rules. Publish is blocked (with an override) only when the last recorded check is Non-Compliant, and only for regimes where the checks are binding.</div>
-    <div class="grid-overview" id="complianceGrid"></div>
-  `;
-  const grid = document.getElementById("complianceGrid");
-  all.forEach(p=>{
-    const lastCheck = getLastComplianceCheck(p.id);
-    const holdings = getHoldings(p.id);
-    const regime = p.regulatoryRegime || "india_sebi";
-    let statusLabel, statusClass;
-    if(!lastCheck){
-      statusLabel = "Not checked yet"; statusClass = "draft";
-    } else if(lastCheck.compliance_check_result.compliant){
-      statusLabel = "Compliant"; statusClass = "published";
-    } else {
-      statusLabel = "Non-Compliant"; statusClass = "draft";
-    }
-    const card = document.createElement("div");
-    card.className = "p-card";
-    card.onclick = ()=>showProductCompliance(p.id);
-    card.innerHTML = `
-      <span class="tag">${escText(p.id)} · ${escText(p.code)} <span class="status-pill ${statusClass}" style="margin-left:auto;"><span class="dot"></span>${statusLabel}</span></span>
-      <h3>${escText(p.name)}</h3>
-      <p>${holdings.length} holding${holdings.length===1?'':'s'} entered · regime: ${escText(regime)}</p>
-      <div class="meta">
-        ${lastCheck ? `<span>Last checked ${new Date(lastCheck.created_at).toLocaleDateString()}</span>` : `<span>No checks run</span>`}
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function renderProductCompliance(id){
-  const p = getProduct(id);
-  const main = document.getElementById("main");
-  const holdings = getHoldings(id);
-  const history = getComplianceHistory(id).slice().reverse(); // most recent first
-  const lastCheck = history.length ? history[0] : null;
-  const regime = p.regulatoryRegime || "india_sebi";
-  const totalWeight = holdings.reduce((sum,h)=>sum + (Number(h.weight_pct)||0), 0);
-
-  let html = `
-    <div class="topbar">
-      <div>
-        <h1>Compliance — ${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.code)} · regime: ${escText(regime)} · ${holdings.length} holding${holdings.length===1?'':'s'} · total weight ${totalWeight.toFixed(2)}%</div>
-      </div>
-      <div class="toolbar">
-        <button class="btn" onclick="showEdit('${id}')">← Back to Edit</button>
-        <button class="btn" onclick="showView('compliance')">All Products</button>
-        <button class="btn primary" onclick="handleCheckCompliance('${id}')">Check Compliance</button>
-      </div>
-    </div>
-  `;
-
-  if(lastCheck){
-    const result = lastCheck.compliance_check_result;
-    html += `<div class="callout ${result.compliant ? '' : 'warn'}">
-      <strong>${result.compliant ? 'Compliant' : 'Non-Compliant'}</strong> as of last check (${new Date(lastCheck.created_at).toLocaleString()}, rebalance #${lastCheck.rebalance_number}). ${result.compliant ? 'Publish is not blocked.' : 'Publish will show an override confirmation until this clears.'}
-    </div>`;
-    html += `<h2 class="section">Last Check — Rule Detail</h2><div class="card">`;
-    result.checks.forEach(c=>{
-      const badgeClass = c.status === "pass" ? "published" : c.status === "fail" ? "draft" : "draft";
-      const badgeLabel = { pass: "Pass", fail: "Fail", "no-data": "No data", manual: "Manual" }[c.status] || c.status;
-      html += `<div class="kv" style="align-items:flex-start;">
-        <div class="k">${c.name} <span class="status-pill ${badgeClass}" style="margin-left:6px;"><span class="dot"></span>${badgeLabel}</span></div>
-        <div class="v">${c.detail}</div>
-      </div>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div class="callout warn">No compliance check has been run yet for this product. Enter holdings below, then click "Check Compliance."</div>`;
-  }
-
-  html += `<h2 class="section">Current Draft Holdings <span class="s-label-inline">structured</span></h2><div class="card">`;
-  html += `<div id="holdingsEditor-${id}">`;
-  holdings.forEach(h=>{
-    html += `
-      <div class="editable-table-row five" data-holding-id="${h.id}">
-        <input type="text" value="${escAttr(h.instrument_code)}" onchange="handleUpdateHolding('${h.id}','${id}','instrument_code',this.value)" placeholder="Code/ISIN">
-        <input type="text" value="${escAttr(h.instrument_name)}" onchange="handleUpdateHolding('${h.id}','${id}','instrument_name',this.value)" placeholder="Instrument name">
-        <input type="text" value="${escAttr(h.sector||'')}" onchange="handleUpdateHolding('${h.id}','${id}','sector',this.value)" placeholder="Sector">
-        <input type="number" min="0" max="100" step="0.01" class="input-sm" value="${h.weight_pct}" onchange="handleUpdateHolding('${h.id}','${id}','weight_pct',this.value)" placeholder="Weight %">
-        <button class="row-remove" onclick="handleDeleteHolding('${h.id}','${id}')">×</button>
-      </div>
-    `;
-  });
-  html += `</div>`;
-  html += `<div style="margin-top:12px;"><button class="btn small" onclick="handleAddHolding('${id}')">+ Add Holding</button></div>`;
-  html += `<div class="topbar-sub" style="margin-top:10px;">Total weight: ${totalWeight.toFixed(2)}% ${Math.abs(totalWeight-100)<=0.5 ? '(within tolerance)' : '(should sum to ~100%)'}</div>`;
-  html += `</div>`;
-
-  if(history.length){
-    html += `<h2 class="section">Check History</h2><div class="card">`;
-    history.forEach(h=>{
-      const r = h.compliance_check_result;
-      html += `<div class="kv"><div class="k">Rebalance #${h.rebalance_number} — ${new Date(h.created_at).toLocaleString()}</div><div class="v">${r.compliant ? 'Compliant' : 'Non-Compliant'} · ${h.holdings_snapshot.length} holding(s)</div></div>`;
-    });
-    html += `</div>`;
-  }
-
-  main.innerHTML = html;
-}
-
-async function handleCheckCompliance(id){
-  const btn = event && event.target;
-  if(btn) { btn.disabled = true; btn.textContent = "Checking…"; }
-  try {
-    await recordComplianceCheck(id);
-    renderProductCompliance(id);
-  } catch(err){
-    // recordComplianceCheck already shows a global error
-  } finally {
-    if(btn) { btn.disabled = false; btn.textContent = "Check Compliance"; }
-  }
-}
-
-async function handleAddHolding(id){
-  try {
-    await addHolding(id, { instrument_code: "", instrument_name: "", weight_pct: 0 });
-    renderProductCompliance(id);
-  } catch(err){ /* addHolding already shows a global error */ }
-}
-
-async function handleUpdateHolding(holdingId, productId, field, value){
-  const fields = {};
-  fields[field] = field === "weight_pct" ? (clampPct(value) ?? 0) : value;
-  try {
-    await updateHolding(holdingId, productId, fields);
-  } catch(err){ /* updateHolding already shows a global error */ }
-}
-
-async function handleDeleteHolding(holdingId, productId){
-  if(!confirm("Remove this holding from the draft?")) return;
-  try {
-    await deleteHolding(holdingId, productId);
-    renderProductCompliance(productId);
-  } catch(err){ /* deleteHolding already shows a global error */ }
-}
-
 // ---------- ARCHIVE VIEW ----------
 function renderArchiveView(){
   const main = document.getElementById("main");
@@ -1745,9 +1311,9 @@ function renderArchiveView(){
     const card = document.createElement("div");
     card.className = "p-card";
     card.innerHTML = `
-      <span class="tag">${escText(p.id)} · ${escText(p.code)}</span>
-      <h3>${escText(p.name)}</h3>
-      <p>${escText((p.objective||"").slice(0,130))}...</p>
+      <span class="tag">${p.id} · ${p.code}</span>
+      <h3>${p.name}</h3>
+      <p>${(p.objective||"").slice(0,130)}...</p>
       <div class="toolbar" style="margin-top:10px;">
         <button class="btn small" onclick="event.stopPropagation(); showProduct('${p.id}')">View</button>
         <button class="btn small primary" onclick="event.stopPropagation(); handleUnarchive('${p.id}')">Restore</button>
@@ -1783,8 +1349,8 @@ function renderProduct(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.category)} · Code: ${escText(p.code)} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · v${entry.versions.length}</div>
+        <h1>${p.name}</h1>
+        <div class="topbar-sub">${p.category} · Code: ${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · v${entry.versions.length}</div>
       </div>
       <div class="toolbar">
         <button class="btn primary" onclick="showEdit('${p.id}')">Edit</button>
@@ -1957,16 +1523,16 @@ function handleCsvFile(file){
       let totalWeight = 0;
       rows.forEach(r=>{ const w = parseFloat(r.weight); if(!isNaN(w)) totalWeight += (w>1? w : w*100 <=100 && w<=1 ? w*100 : w); });
       document.getElementById("csvResult").innerHTML = `
-        <div class="callout">Loaded <strong>${rows.length}</strong> constituents for <strong>${escText(p.name)}</strong>. Approx. total weight: <strong>${totalWeight.toFixed(1)}%</strong> ${Math.abs(totalWeight-100)>2 ? '<span style="color:var(--amber)">— check weights sum to ~100%</span>' : '<span style="color:var(--green)">OK</span>'}</div>
+        <div class="callout">Loaded <strong>${rows.length}</strong> constituents for <strong>${p.name}</strong>. Approx. total weight: <strong>${totalWeight.toFixed(1)}%</strong> ${Math.abs(totalWeight-100)>2 ? '<span style="color:var(--amber)">— check weights sum to ~100%</span>' : '<span style="color:var(--green)">OK</span>'}</div>
         <table><tr><th>Symbol</th><th>Name</th><th>Weight</th></tr>
-        ${rows.slice(0,50).map(r=>`<tr><td>${escText(r.symbol)}</td><td>${escText(r.name)}</td><td>${escText(r.weight)}</td></tr>`).join("")}
+        ${rows.slice(0,50).map(r=>`<tr><td>${r.symbol}</td><td>${r.name}</td><td>${r.weight}</td></tr>`).join("")}
         </table>
         ${rows.length>50 ? `<div style="color:var(--text-faint); font-size:.7rem;">Showing first 50 of ${rows.length} rows.</div>` : ""}
         <button class="btn primary" style="margin-top:12px;" onclick="showProduct('${pid}')">View Product Note →</button>
       `;
     },
     error: function(err){
-      document.getElementById("csvResult").innerHTML = `<div class="callout danger">Parse error: ${escText(err.message)}</div>`;
+      document.getElementById("csvResult").innerHTML = `<div class="callout danger">Parse error: ${err.message}</div>`;
     }
   });
 }
@@ -2169,18 +1735,17 @@ function renderEdit(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>Edit — ${escText(p.name)}</h1>
-        <div class="topbar-sub">${escText(p.code)} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · unsaved changes apply immediately to the working draft</div>
+        <h1>Edit — ${p.name}</h1>
+        <div class="topbar-sub">${p.code} · <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span> · unsaved changes apply immediately to the working draft</div>
       </div>
       <div class="toolbar">
         <button class="btn" onclick="showProduct('${p.id}')">← Back to Note</button>
         <button class="btn" onclick="addRisk('${p.id}')">+ Add Risk</button>
-        <button class="btn" onclick="showProductCompliance('${p.id}')">Compliance</button>
         <button class="btn primary" onclick="publishProduct('${p.id}')">Publish Version</button>
       </div>
     </div>
 
-    <div class="callout">Structured fields (allocation ranges, factor weights, caps) validate as you type. Prose fields (objective, philosophy, suitability) are freeform text. Nothing is versioned until you click <strong>Publish Version</strong> — until then this is your working draft. Editing holdings and running a compliance check is a separate, additive step on the <strong>Compliance</strong> screen — it does not block Publish unless the last check came back Non-Compliant.</div>
+    <div class="callout">Structured fields (allocation ranges, factor weights, caps) validate as you type. Prose fields (objective, philosophy, suitability) are freeform text. Nothing is versioned until you click <strong>Publish Version</strong> — until then this is your working draft.</div>
 
     <h2 class="section">Key Facts <span class="s-label-inline">structured</span></h2>
     <div class="card">
@@ -2190,14 +1755,6 @@ function renderEdit(id){
       <div class="field-row"><div class="field-label">Min. Investment</div><input type="text" value="${escAttr(p.minInvestment||'')}" onchange="updateField('${id}','minInvestment',this.value)"></div>
       <div class="field-row"><div class="field-label">Fees</div><input type="text" value="${escAttr(p.fees||'')}" onchange="updateField('${id}','fees',this.value)"></div>
       <div class="field-row"><div class="field-label">Tax Note</div><input type="text" value="${escAttr(p.taxNote||'')}" onchange="updateField('${id}','taxNote',this.value)"></div>
-      <div class="field-row"><div class="field-label">Regulatory Regime <span class="s-label-inline">drives compliance checks</span></div>
-        <select onchange="updateField('${id}','regulatoryRegime',this.value)">
-          <option value="india_sebi" ${(p.regulatoryRegime||'india_sebi')==='india_sebi'?'selected':''}>India (SEBI)</option>
-          <option value="other" ${p.regulatoryRegime==='other'?'selected':''}>Other jurisdiction</option>
-          <option value="none" ${p.regulatoryRegime==='none'?'selected':''}>None / not applicable</option>
-        </select>
-        <div class="topbar-sub" style="margin-top:4px;">Only India (SEBI) runs the full cap/sector/disclosure check set. Other regimes run just the universal weights-sum-to-100% check until their own rules are defined — see the Compliance screen.</div>
-      </div>
     </div>
 
     <h2 class="section">Objective &amp; Philosophy <span class="s-label-inline">freeform</span></h2>
@@ -2479,27 +2036,6 @@ function refreshWeightBadges(id){
 
 async function publishProduct(id){
   const entry = getEntry(id);
-  const p = entry.current;
-  const regime = p.regulatoryRegime || "india_sebi";
-
-  // Publish gating (ROADMAP.md Phase 1): blocked only if the *last recorded* compliance
-  // check for this product says Non-Compliant, and only for regimes where the checks
-  // are actually binding (india_sebi today). No maker-checker, no override-with-reason —
-  // both deliberately deferred. If no check has ever been run, Publish is still allowed:
-  // holdings/compliance is a separate, additive workflow from note publishing, not a
-  // hard prerequisite for it (a product can be published on its note content alone).
-  if(regime === "india_sebi"){
-    const lastCheck = getLastComplianceCheck(id);
-    if(lastCheck && lastCheck.compliance_check_result && lastCheck.compliance_check_result.compliant === false){
-      const proceedAnyway = confirm(
-        `The last compliance check for ${p.code} came back Non-Compliant (checked ${new Date(lastCheck.created_at).toLocaleString()}).\n\n` +
-        `Publish is normally blocked in this state — fix holdings and re-check on the Compliance screen first.\n\n` +
-        `Click Cancel to stop and go fix compliance, or OK to proceed anyway (no override-reason is logged for this yet — see ARCHITECTURE.md on maker-checker deferral).`
-      );
-      if(!proceedAnyway) { showView('compliance'); return; }
-    }
-  }
-
   const note = prompt("Optional note for this version (what changed / why publishing now):", "");
   if(note === null) return; // cancelled
   const versionNum = entry.versions.length + 1;
@@ -2560,7 +2096,7 @@ function renderHistory(id){
   let html = `
     <div class="topbar">
       <div>
-        <h1>Version History — ${escText(p.name)}</h1>
+        <h1>Version History — ${p.name}</h1>
         <div class="topbar-sub">${entry.versions.length} published version(s) · current status: <span class="status-pill ${entry.status}"><span class="dot"></span>${entry.status}</span></div>
       </div>
       <div class="toolbar">
@@ -3320,7 +2856,7 @@ if (supabaseInitError) {
       } else {
         currentUser = null;
         appBooted = false;
-        state = { products: {}, templates: {}, holdings: {}, complianceChecks: {}, lastSaved: null };
+        state = { products: {}, templates: {}, lastSaved: null };
         showLoginScreen();
       }
     });
