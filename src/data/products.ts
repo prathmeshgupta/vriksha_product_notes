@@ -34,6 +34,24 @@ export async function getProduct(id: string): Promise<ProductRow | null> {
   return data as ProductRow | null
 }
 
+/**
+ * One published-version count per product, in a single query -- used by the
+ * overview grid and sidebar nav (R3) so listing N products doesn't fire N
+ * separate `listProductVersions` calls. Not part of the frozen app (which
+ * had every version already loaded into in-memory state); an addition
+ * specific to the normalized-table Supabase model this rebuild uses.
+ */
+export async function listVersionCounts(): Promise<Map<string, number>> {
+  const { data, error } = await sb.from('product_versions').select('product_id')
+  if (error) throw error
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    const id = row.product_id as string
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
+}
+
 export async function listProductVersions(productId: string): Promise<ProductVersionRow[]> {
   const { data, error } = await sb
     .from('product_versions')

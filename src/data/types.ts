@@ -21,47 +21,91 @@ export type Archetype = 'single-sleeve' | 'strategic-allocation' | 'risk-variant
 
 // ---------- product note "data" jsonb shapes (one per archetype) ----------
 
+/**
+ * The reusable 5-field numeric cap block: sleeve allocation range (min/max %)
+ * plus a true position-size range (min/max %) and its basis. Corrected
+ * 2026-07-17 (R3) -- R2's original version only had sleeveMinPct/sleeveMaxPct,
+ * because the sampled rows used to derive it happened to have positionMinPct/
+ * positionMaxPct/positionBasis entirely absent rather than present-as-null.
+ * The frozen app's `capFieldsHtml()` helper (repo root index.html) proves all
+ * 5 fields are real, live-edited fields reused identically across the
+ * single-sleeve construction-rules block, styleSleeves, strategicAllocationRanges,
+ * and every variant's allocation rows -- source code showing what the editor
+ * writes is more authoritative here than sparse sample data. See ROADMAP.md R2's
+ * own note flagging this file for re-verification when R3's editor is built.
+ */
 export interface CapRange {
   sleeveMinPct: number | null
   sleeveMaxPct: number | null
+  positionMinPct: number | null
+  positionMaxPct: number | null
+  /** 'portfolio' | 'sleeve' -- whether position sizing is % of portfolio or % of sleeve. */
+  positionBasis: string
 }
 
-/** Single-sleeve archetype (e.g. P1 "DSOP"): direct-stock style sleeves. */
+/**
+ * Single-sleeve archetype (e.g. P1 "DSOP"): direct-stock style sleeves.
+ * `weightRange` (free-text, e.g. "35-55%") was removed in R3 (post-user-testing)
+ * -- it duplicated sleeveMinPct/sleeveMaxPct with no way to keep the two in
+ * sync, and the user flagged it as serving no purpose next to the numeric
+ * fields. Display now derives from sleeveMinPct/sleeveMaxPct via
+ * `formatMinMaxRange()` in lib/capsFormat.ts.
+ */
 export interface StyleSleeve extends CapRange {
   name: string
   criteria: string
   universe: string
-  weightRange: string
   indicativeNames: string
 }
 
-export interface PortfolioConstructionRules {
-  cashBuffer: string
-  positionBasis: string
-  positionMaxPct: number | null
+/**
+ * Same correction as CapRange above -- sleeveMinPct/sleeveMaxPct/positionMinPct
+ * were missing. `stockCountRange`/`cashBuffer` were further corrected in R3
+ * (post-user-testing): the frozen app stores these as free-text strings
+ * ("15-25", "0-5%"), but the rebuild's Construction Rules section is
+ * explicitly "structured, numeric only" (see ProductEditor.tsx), so text
+ * inputs here were a real bug, not a deliberate deviation. Replaced with
+ * explicit min/max numeric pairs; the one live row that had text values
+ * (DSOP) was migrated via a one-off SQL UPDATE, not silently dropped.
+ */
+export interface PortfolioConstructionRules extends CapRange {
+  cashBufferMinPct: number | null
+  cashBufferMaxPct: number | null
   sectorCapMaxPct: number | null
-  stockCountRange: string
+  stockCountMin: number | null
+  stockCountMax: number | null
 }
 
-/** Strategic-allocation archetype (e.g. P2 "DMAP"): fixed sleeve % ranges across asset classes. */
+/**
+ * Strategic-allocation archetype (e.g. P2 "DMAP"): fixed sleeve % ranges
+ * across asset classes. `range` (free-text, e.g. "5-15%") removed in R3
+ * (post-user-testing) for the same reason as StyleSleeve.weightRange above --
+ * identical redundancy against sleeveMinPct/sleeveMaxPct, fixed the same way.
+ */
 export interface AllocationRange extends CapRange {
   sleeve: string
-  range: string
 }
 
 /**
  * Risk-variant archetype (e.g. P3/P4/P7/P8): one profile (Aggressive/
  * Moderate/Conservative) per array entry, each with its own allocation
- * table. Re-verify field-by-field in R3 when the risk-variant editor is
- * built -- indicativeInstruments/selectionMethodology/sharedInstrumentUniverse
- * vary by which specific product this is (ETF/REIT/InvIT vs MF vs systematic),
- * typed here as Record<string, string> since their key sets differ.
+ * table. Re-verified in R3 against the frozen app's actual variant editor
+ * (repo root index.html, `renderEdit()`'s variants block): factorMix/
+ * universe/stockCount/referenceIndex/rationale are a second, optional field
+ * set only some variants carry (systematic/factor-based products), rendered
+ * conditionally there via `if(v.factorMix!==undefined)` -- R2's original
+ * version omitted these entirely since they weren't in the sampled rows.
  */
 export interface RiskVariant {
   profile: string
-  targetInvestor: string
-  expectedEquityLikeExposure: string
-  allocation: AllocationRange[]
+  targetInvestor?: string
+  factorMix?: string
+  universe?: string
+  stockCount?: string
+  referenceIndex?: string
+  rationale?: string
+  expectedEquityLikeExposure?: string
+  allocation?: AllocationRange[]
 }
 
 /** Goal-based archetype (e.g. P5/P6/P9): one entry per financial goal type. */
@@ -75,6 +119,16 @@ export interface GoalFrameworkEntry {
 /**
  * Fields common to every product note archetype, verified against P1-P9's
  * actual `data` jsonb across all 4 archetypes.
+ *
+ * `selectionMethodology` and `portfolioConstruction` corrected in R3: the
+ * frozen app's `renderEdit()`/`renderProduct()`/`DIFF_FIELDS` (repo root
+ * index.html) all check these directly on the note object with no archetype
+ * guard (`if(p.selectionMethodology!==undefined)`, `if(p.portfolioConstruction!==undefined)`,
+ * and `"portfolioConstruction"` is a literal entry in DIFF_FIELDS, compared
+ * across every version regardless of archetype) -- i.e. these are optional
+ * on any note, not scoped to one archetype. R2's version had
+ * `selectionMethodology` only on RiskVariantNote and was missing
+ * `portfolioConstruction` entirely.
  */
 export interface ProductNoteCommon {
   id: string
@@ -84,6 +138,8 @@ export interface ProductNoteCommon {
   category: string
   objective: string
   philosophy: string
+  selectionMethodology?: string
+  portfolioConstruction?: string
   riskProfile: string
   suitability: string
   keyRisks: string[]
@@ -109,10 +165,9 @@ export interface StrategicAllocationNote extends ProductNoteCommon {
 
 export interface RiskVariantNote extends ProductNoteCommon {
   variants: RiskVariant[]
-  /** One of these three is present depending on the specific product; re-verify in R3. */
+  /** One of these two is present depending on the specific product. */
   sharedInstrumentUniverse?: Record<string, string>
   indicativeInstruments?: Record<string, string>
-  selectionMethodology?: string
 }
 
 export interface GoalBasedNote extends ProductNoteCommon {
@@ -120,7 +175,13 @@ export interface GoalBasedNote extends ProductNoteCommon {
   portfolioConstructionNote: string
 }
 
-/** Discriminated union of every product note shape. Narrow via `getArchetype()` in products.ts. */
+/**
+ * Discriminated union of every product note shape. Notes are discriminated
+ * by which optional field is present (styleSleeves / strategicAllocationRanges
+ * / variants / goalFramework), matching the frozen app's own approach --
+ * there's no literal tag on the note itself (only `templates.archetype`
+ * carries one). Narrow via the type guards in `lib/archetype.ts`.
+ */
 export type ProductNoteData = SingleSleeveNote | StrategicAllocationNote | RiskVariantNote | GoalBasedNote
 
 // ---------- table row types (snake_case, matches actual Postgres columns) ----------

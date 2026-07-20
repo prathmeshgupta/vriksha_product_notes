@@ -59,6 +59,18 @@ select:focus {
   border-color: var(--gold);
 }
 
+/*
+  !important is deliberate, not sloppy: `.input-sm` exists specifically to
+  override the `input[type='number']{width:100%}` rule above, and both
+  selectors have equal CSS specificity (0,1,0). Without !important, whichever
+  rule's stylesheet happens to load later in the bundle wins -- which in
+  practice depends on unrelated import order elsewhere (e.g. whether a
+  products.css-importing component gets evaluated before this file), not
+  anything visible at this call site. That's exactly what caused the R3
+  "stock count / cash buffer render as two full-width boxes instead of a
+  compact side-by-side pair" bug: `.input-sm` was silently losing the
+  cascade. !important pins the intended behavior regardless of import order.
+*/
 .input-sm {
-  width: 90px;
+  width: 90px !important;
 }

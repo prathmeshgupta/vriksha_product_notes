@@ -5,6 +5,26 @@
   See rebuild/ARCHITECTURE.md §2 for the source reference.
 */
 
+/*
+  Global reset — this was the frozen app's very first CSS rule (repo root
+  index.html, line 18) and R1 missed porting it. Without it, elements use
+  the browser default content-box model: an input with `width:100%` plus
+  its own padding/border renders WIDER than its grid cell, and a 30px
+  fixed-size button with a border renders bigger than its 34px grid track.
+  That's the exact cause of two R3 visual bugs (Key Facts inputs not
+  flush with the card's right edge like their labels are with the left;
+  the sleeve/allocation row's × remove button looking misplaced/overlapping
+  its neighbor) -- both are downstream of this one missing rule, not
+  something wrong with those specific components.
+*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
   --forest:      #0f1a12;
   --deep:        #0a1209;
