@@ -1,6 +1,14 @@
 /* Verbatim port of the frozen app's field-row / input / select rules
    (repo root index.html). Shared across TextField/NumberField/SelectField/
-   TextAreaField. */
+   TextAreaField.
+
+   One deliberate deviation, not a silent one: the frozen app's selector list
+   never includes input[type='password'], so its login password field is
+   actually unstyled/browser-default -- almost certainly an oversight, not
+   intentional (every other input on that same screen, including the email
+   field right above it, is styled). Added here so the rebuild's login
+   screen looks visually consistent. This is a bugfix, not a redesign --
+   flagging per rebuild/STRATEGY.md's "no opportunistic redesign" rule. */
 
 .field-row {
   display: grid;
@@ -21,6 +29,7 @@
 
 input[type='text'],
 input[type='number'],
+input[type='password'],
 textarea,
 select {
   width: 100%;
