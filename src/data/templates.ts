@@ -51,6 +51,21 @@ export function validateTemplateData(data: unknown): asserts data is ProductNote
   }
 }
 
+/**
+ * Matches the frozen app's nextTemplateId(): finds the lowest-numbered
+ * unused "T{n}" id starting from 1 (repo root index.html). Queries Supabase
+ * directly, same reasoning as products.ts's getNextProductId() -- no global
+ * template cache exists outside the UI layer that calls this.
+ */
+export async function getNextTemplateId(): Promise<string> {
+  const { data, error } = await sb.from('templates').select('id')
+  if (error) throw error
+  const existingIds = new Set((data ?? []).map((row) => row.id as string))
+  let n = 1
+  while (existingIds.has('T' + n)) n++
+  return 'T' + n
+}
+
 export async function listTemplates(): Promise<TemplateRow[]> {
   const { data, error } = await sb.from('templates').select('*').order('id')
   if (error) throw error

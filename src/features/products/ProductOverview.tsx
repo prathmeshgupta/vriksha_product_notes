@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import type { ProductRow } from '../../data/types'
-import { Card, CardBody, CardTag, CardTitle, StatusPill } from '../../design-system'
+import { exportAllProductsXlsx } from '../../lib/exportExcel'
+import { Button, Callout, Card, CardBody, CardTag, CardTitle, StatusPill } from '../../design-system'
 import './products.css'
 
 export interface ProductOverviewProps {
   products: ProductRow[]
   versionCounts: Map<string, number>
   onSelect: (id: string) => void
+  onCreate: () => void
 }
 
 function riskClass(r: string | undefined): string {
@@ -20,11 +23,27 @@ function riskClass(r: string | undefined): string {
 
 /**
  * Active-products grid. Matches the frozen app's `renderOverview()` (repo
- * root index.html) field-for-field. "+ New Product" / "Export All" / "Backup"
- * toolbar buttons are R4/R5 territory, not included here yet.
+ * root index.html) field-for-field. "Export All → Excel" was added in R4
+ * (matches the frozen app's `exportAllXlsx()` toolbar button, repo root
+ * index.html line ~1239); "+ New Product" added in R5, routing to
+ * AppShell.tsx's new CreateProductView.
  */
-export function ProductOverview({ products, versionCounts, onSelect }: ProductOverviewProps) {
+export function ProductOverview({ products, versionCounts, onSelect, onCreate }: ProductOverviewProps) {
   const publishedCount = products.filter((p) => p.status === 'published').length
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function handleExportAll() {
+    setExportError(null)
+    setExporting(true)
+    try {
+      await exportAllProductsXlsx(products)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div>
@@ -35,7 +54,16 @@ export function ProductOverview({ products, versionCounts, onSelect }: ProductOv
             {products.length} active products · {publishedCount} published · {products.length - publishedCount} draft
           </div>
         </div>
+        <div className="toolbar">
+          <Button variant="primary" onClick={onCreate}>
+            + New Product
+          </Button>
+          <Button disabled={exporting} onClick={handleExportAll}>
+            {exporting ? 'Exporting…' : 'Export All → Excel'}
+          </Button>
+        </div>
       </div>
+      {exportError && <Callout variant="danger">Export failed: {exportError}</Callout>}
       <div className="callout">
         {products.length} active discretionary &amp; systematic portfolio products, India-focused, smallcase-ready.
         Click a card to view, edit, publish, or export. Amber dot = draft, green dot = published.

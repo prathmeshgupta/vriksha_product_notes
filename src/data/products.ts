@@ -1,5 +1,6 @@
 import { sb } from './supabaseClient'
-import type { ProductRow, ProductVersionRow, ProductNoteData } from './types'
+import type { ProductRow, ProductVersionRow, ProductNoteData, SingleSleeveNote } from './types'
+import { InvalidTemplateDataError, getTemplate, validateTemplateData } from './templates'
 
 /**
  * Typed data-access layer for the `products` and `product_versions` tables.
@@ -185,4 +186,167 @@ export async function insertNewProduct(id: string, data: ProductNoteData): Promi
     updated_by: user?.id ?? null,
   })
   if (error) throw error
+}
+
+// ---------- R5: three-path Create flow, ported from the frozen app's
+// blankProductShape/createBlankProduct/createProductFromTemplate/
+// createProductFromExisting (repo root index.html), plus a 4th path (R5.5,
+// not in the frozen app) for bulk JSON import. All four return the new
+// product's id so the caller can route straight into the editor, matching
+// the frozen app's handleCreateProduct() -> showEdit(newId) pattern. ----------
+
+/**
+ * TypeScript adaptation the frozen app didn't need: its blankProductShape()
+ * is untyped JS and omits styleSleeves/variants/etc. entirely -- fine at
+ * runtime, but `ProductNoteData` is a discriminated union where every member
+ * requires one of those arrays to actually be present (see lib/archetype.ts).
+ * An object with none of them doesn't structurally satisfy the union, so
+ * "blank" here defaults to a single-sleeve shape with empty arrays/null caps
+ * rather than a truly untyped object -- same visible behavior (nothing
+ * pre-filled), but it type-checks. Disclosed adaptation, not a silent
+ * redesign, per rebuild/STRATEGY.md.
+ */
+function blankProductShape(): SingleSleeveNote {
+  return {
+    id: '',
+    code: '',
+    name: '',
+    shortName: '',
+    category: 'Discretionary — Single Asset Class (Equity)',
+    regulatoryRegime: 'india_sebi',
+    assetClasses: [],
+    objective: '',
+    philosophy: '',
+    benchmark: '',
+    rebalanceFrequency: '',
+    riskProfile: '',
+    suitability: '',
+    minInvestment: '',
+    fees: '',
+    taxNote: '',
+    keyRisks: [],
+    styleSleeves: [],
+    portfolioConstructionRules: {
+      sleeveMinPct: null,
+      sleeveMaxPct: null,
+      positionMinPct: null,
+      positionMaxPct: null,
+      positionBasis: 'portfolio',
+      cashBufferMinPct: null,
+      cashBufferMaxPct: null,
+      sectorCapMaxPct: null,
+      stockCountMin: null,
+      stockCountMax: null,
+    },
+  }
+}
+
+export async function createBlankProduct(name: string, code?: string): Promise<string> {
+  const newId = await getNextProductId()
+  const cloned = blankProductShape()
+  cloned.id = newId
+  cloned.code = code || newId
+  cloned.name = name
+  cloned.shortName = name
+  await insertNewProduct(newId, cloned)
+  return newId
+}
+
+export async function createProductFromTemplate(templateId: string, name: string, code?: string): Promise<string> {
+  const template = await getTemplate(templateId)
+  if (!template) throw new Error('Template not found: ' + templateId)
+  const newId = await getNextProductId()
+  const cloned = JSON.parse(JSON.stringify(template.data)) as ProductNoteData
+  cloned.id = newId
+  cloned.code = code || newId
+  cloned.name = name
+  cloned.shortName = name
+  await insertNewProduct(newId, cloned)
+  return newId
+}
+
+export async function createProductFromExisting(sourceProductId: string, name: string, code?: string): Promise<string> {
+  const source = await getProduct(sourceProductId)
+  if (!source) throw new Error('Source product not found: ' + sourceProductId)
+  const newId = await getNextProductId()
+  const cloned = JSON.parse(JSON.stringify(source.data)) as ProductNoteData
+  cloned.id = newId
+  cloned.code = code || `${source.code}-COPY`
+  cloned.name = name
+  cloned.shortName = name
+  await insertNewProduct(newId, cloned)
+  return newId
+}
+
+/**
+ * Independent review caught a real gap here: `validateTemplateData` alone
+ * (category/assetClasses/code/name) is the right bar for a *template* row,
+ * which is inert until cloned and filled in -- but it's the wrong bar for a
+ * *live* product created directly via JSON import, because it doesn't check
+ * for any of the 4 archetype-discriminant arrays `lib/archetype.ts`'s type
+ * guards key off (`styleSleeves`/`strategicAllocationRanges`/`variants`/
+ * `goalFramework`). A JSON missing all 4 would still pass
+ * `validateTemplateData` and get inserted as a real product row that no
+ * `isSingleSleeve`/`isStrategicAllocation`/`isRiskVariant`/`isGoalBased`
+ * check matches -- not a crash (every render site already guards on those
+ * type guards), but a silently incomplete product with none of its
+ * structure-specific sections ever rendering, and no obvious way to notice
+ * why. This closes that gap specifically for the JSON-import path.
+ */
+export class InvalidProductJsonError extends Error {
+  constructor(detail: string) {
+    super(detail)
+    this.name = 'InvalidProductJsonError'
+  }
+}
+
+const ARCHETYPE_DISCRIMINANT_FIELDS = ['styleSleeves', 'strategicAllocationRanges', 'variants', 'goalFramework'] as const
+
+function validateHasArchetypeShape(data: Record<string, unknown>): void {
+  const hasArchetype = ARCHETYPE_DISCRIMINANT_FIELDS.some((f) => Array.isArray(data[f]))
+  if (!hasArchetype) {
+    throw new InvalidProductJsonError(
+      `Product JSON must include at least one archetype-defining array field, even if empty: one of ${ARCHETYPE_DISCRIMINANT_FIELDS.join(', ')}. ` +
+        `Without one, the product won't match any of the app's 4 note layouts (single-sleeve, strategic-allocation, ` +
+        `risk-variant, goal-based) and none of its structure-specific sections will ever render. Download a template ` +
+        `from an existing archetype (Create screen → From Archetype Template → Download this template's JSON) for a ` +
+        `worked example of the field shape.`,
+    )
+  }
+}
+
+/**
+ * R5.5 -- bulk JSON import, not in the frozen app. Reuses templates.ts's
+ * `validateTemplateData` guard rather than a second, parallel validator: a
+ * pasted/uploaded product JSON crosses exactly the same trust boundary a
+ * pasted template JSON does (arbitrary user-supplied structure that must not
+ * be allowed to break renderNav() etc. once it becomes a live product), so
+ * the check is the same. Throws InvalidTemplateDataError (via
+ * validateTemplateData) on a malformed shape -- caller surfaces that as a
+ * Callout, same as every other Create path's error handling.
+ *
+ * `name`/`code` overrides are merged in BEFORE validation runs, not after --
+ * an earlier version of this function validated `rawData` as-is and only
+ * applied the overrides afterward, which meant a JSON template that
+ * deliberately omitted `name`/`code` (relying on the UI's override fields to
+ * supply them) would always fail validation before the override ever had a
+ * chance to fill the gap. Merging first means the override fields genuinely
+ * work as overrides/fill-ins, not just cosmetic renames of an already-valid
+ * JSON.
+ */
+export async function createProductFromJson(rawData: unknown, name: string, code?: string): Promise<string> {
+  if (typeof rawData !== 'object' || rawData === null) {
+    throw new InvalidTemplateDataError(['(entire structure is not a JSON object)'])
+  }
+  const merged: Record<string, unknown> = { ...(rawData as Record<string, unknown>) }
+  if (name.trim()) merged.name = name.trim()
+  if (code && code.trim()) merged.code = code.trim()
+  validateTemplateData(merged)
+  validateHasArchetypeShape(merged)
+  const newId = await getNextProductId()
+  const cloned = JSON.parse(JSON.stringify(merged)) as ProductNoteData
+  cloned.id = newId
+  cloned.shortName = cloned.shortName || cloned.name
+  await insertNewProduct(newId, cloned)
+  return newId
 }

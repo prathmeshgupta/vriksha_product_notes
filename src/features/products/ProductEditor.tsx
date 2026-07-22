@@ -13,9 +13,10 @@ import { SleeveEditor } from './editors/SleeveEditor'
 import { AllocationEditor } from './editors/AllocationEditor'
 import { VariantEditor } from './editors/VariantEditor'
 import { GoalFrameworkEditor } from './editors/GoalFrameworkEditor'
-import { KeyRisksEditor, addBlankRisk } from './editors/KeyRisksEditor'
+import { KeyRisksEditor } from './editors/KeyRisksEditor'
 import { CapFieldsRow } from './shared/CapFieldsRow'
 import { Button, Callout, FieldRow, SelectField, TextAreaField, TextField } from '../../design-system'
+import { DEFAULT_DISCLOSURES_TEXT } from '../../lib/disclosures'
 import './products.css'
 
 export interface ProductEditorProps {
@@ -93,7 +94,6 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
     hasPendingSave.current = true
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(flushSave, SAVE_DEBOUNCE_MS)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
   /**
@@ -110,7 +110,6 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
     return () => {
       flushSave()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function patch(fields: NotePatch) {
@@ -143,7 +142,7 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
         </div>
         <div className="toolbar">
           <Button onClick={onBack}>← Back to Note</Button>
-          <Button onClick={() => patch({ keyRisks: addBlankRisk(data.keyRisks || []) })}>+ Add Risk</Button>
+          <Button onClick={() => patch({ keyRisks: [...(data.keyRisks || []), ''] })}>+ Add Risk</Button>
           <Button variant="primary" onClick={handlePublish}>
             Publish Version
           </Button>
@@ -395,6 +394,24 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
       </h2>
       <div className="card">
         <KeyRisksEditor risks={data.keyRisks || []} onChange={(keyRisks) => patch({ keyRisks })} />
+      </div>
+
+      <h2 className="section">
+        Disclosures <span className="s-label-inline">freeform</span>
+      </h2>
+      <div className="card">
+        <TextAreaField
+          label="Disclosures / Disclaimer"
+          rows={5}
+          value={data.disclosures ?? ''}
+          placeholder={DEFAULT_DISCLOSURES_TEXT}
+          onChange={(e) => patch({ disclosures: e.target.value })}
+        />
+        <Callout variant={data.disclosures ? 'default' : 'warn'}>
+          {data.disclosures
+            ? 'This text renders in the PDF, Word, and read-only exports.'
+            : 'Empty — exports currently fall back to a marked DRAFT boilerplate (lib/disclosures.ts), not reviewed compliance text. Fill this in once your firm’s actual disclosure language is finalized.'}
+        </Callout>
       </div>
 
       <div className="footer-note">

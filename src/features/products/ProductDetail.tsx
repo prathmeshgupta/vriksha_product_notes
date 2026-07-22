@@ -4,7 +4,12 @@ import type { ProductRow } from '../../data/types'
 import { listProductVersions } from '../../data/products'
 import { formatCapsSentence, formatMinMaxRange } from '../../lib/capsFormat'
 import { isGoalBased, isRiskVariant, isSingleSleeve, isStrategicAllocation } from '../../lib/archetype'
-import { Button, Pill, StatusPill } from '../../design-system'
+import { exportProductXlsx } from '../../lib/exportExcel'
+import { exportProductDocx } from '../../lib/exportWord'
+import { exportClientSummaryPdf, exportProductPdf } from '../../lib/exportPdf'
+import { emailNoteVia } from '../../lib/email'
+import { DEFAULT_DISCLOSURES_TEXT } from '../../lib/disclosures'
+import { Button, Callout, Pill, StatusPill } from '../../design-system'
 import './products.css'
 
 export interface ProductDetailProps {
@@ -37,13 +42,17 @@ function Kv({ label, children }: { label: string; children: ReactNode }) {
 /**
  * Read-only product note view. Matches the frozen app's `renderProduct()`
  * (repo root index.html) field-for-field. Export (Word/Excel/PDF) and Email
- * buttons are R4 territory, not included here yet -- omitted rather than
- * stubbed, per rebuild/STRATEGY.md's "no half-built UI" preference.
+ * buttons, added in R4, call the async export functions in `lib/` --
+ * failures surface as a dismissable-on-retry Callout banner rather than
+ * `alert()` (the frozen app's approach), matching the Callout-based error
+ * pattern already used by BackupView's download handler.
  */
 export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchive }: ProductDetailProps) {
   const data = product.data
   const [versionCount, setVersionCount] = useState<number | null>(null)
   const [variantIdx, setVariantIdx] = useState(0)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     setVariantIdx(0)
@@ -55,6 +64,18 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
       cancelled = true
     }
   }, [product.id])
+
+  async function runExport(action: () => Promise<void>) {
+    setExportError(null)
+    setExporting(true)
+    try {
+      await action()
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const variants = isRiskVariant(data) ? data.variants : null
   const instrUniverse = isStrategicAllocation(data)
@@ -78,6 +99,30 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
             Edit
           </Button>
           <Button onClick={onHistory}>History &amp; Diff</Button>
+          <Button disabled={exporting} onClick={() => runExport(() => exportProductDocx(product))}>
+            → Word
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => exportProductXlsx(product))}>
+            → Excel
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => exportProductPdf(product))}>
+            → PDF (Full Note)
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => exportClientSummaryPdf(product))}>
+            → PDF (Client Summary)
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => emailNoteVia(product, 'gmail'))}>
+            ✉ Gmail
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => emailNoteVia(product, 'outlook'))}>
+            ✉ Outlook
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => emailNoteVia(product, 'yahoo'))}>
+            ✉ Yahoo
+          </Button>
+          <Button disabled={exporting} onClick={() => runExport(() => emailNoteVia(product, 'default'))}>
+            ✉ Desktop App
+          </Button>
           {product.archived ? (
             <Button onClick={onUnarchive}>Restore from Archive</Button>
           ) : (
@@ -87,6 +132,8 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
           )}
         </div>
       </div>
+
+      {exportError && <Callout variant="danger">Export failed: {exportError}</Callout>}
 
       <div className="card">
         <Kv label="Risk Profile">
@@ -297,6 +344,11 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
       <div className="card">
         <Kv label="Fees">{data.fees || '—'}</Kv>
         <Kv label="Tax Treatment">{data.taxNote || 'To be detailed in a future revision.'}</Kv>
+      </div>
+
+      <h2 className="section">Disclosures</h2>
+      <div className="card">
+        <p style={{ fontSize: '.76rem', color: 'var(--text-faint)' }}>{data.disclosures || DEFAULT_DISCLOSURES_TEXT}</p>
       </div>
 
       <div className="footer-note">

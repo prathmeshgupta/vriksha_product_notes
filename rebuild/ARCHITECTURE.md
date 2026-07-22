@@ -1,6 +1,6 @@
 # Vriksha Product Note Studio — Rebuild Architecture
 
-Last updated: 2026-07-16. Technical structure for the rebuild. See `STRATEGY.md` for why, `ROADMAP.md` for build order. This document should be corrected as real decisions get made during implementation — it is a plan, not a retroactive description yet, since no real screens exist as of this writing (see R0 status in `ROADMAP.md`).
+Last updated: 2026-07-20 (through R3). Technical structure for the rebuild. See `STRATEGY.md` for why, `ROADMAP.md` for build order. R0-R3 are built and pushed; §3 below now describes the actual structure, not just the original plan — see that section for the two places it drifted from the R0 proposal.
 
 ## 1. Stack
 
@@ -47,45 +47,48 @@ https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Lo
 - `.callout`: `var(--deep)` background, 3px `var(--gold)` left border, JetBrains Mono `.72rem`, `var(--sage)` text. `.warn` variant swaps the border/text to `var(--amber)`, `.danger` to `var(--red)`.
 - `.p-card`: `var(--canopy)` background, 1px `var(--moss)` border, a 2px gold left-edge that animates in on hover.
 
-## 3. Folder structure (proposed for R0)
+## 3. Folder structure (actual, as of R3 — updated 2026-07-20; original R0 proposal below diverged in two places, noted inline)
 
 ```
 src/
   main.tsx                 — entry point
-  App.tsx                  — top-level routing/shell
+  App.tsx                  — top-level routing/shell (gates on auth, then renders AppShell)
   design-system/           — R1: the component library
-    tokens.css              — the :root variables above, verbatim
-    Button.tsx
-    Card.tsx
-    StatusPill.tsx
-    Callout.tsx
-    Pill.tsx
+    tokens.css              — the :root variables above, verbatim, plus the global box-sizing reset (added R3)
+    Button.tsx / Card.tsx / StatusPill.tsx / Callout.tsx / Pill.tsx
+    DevComponentsPage.tsx     — R1's visual QA page
     form/
-      TextField.tsx
-      NumberField.tsx        — the min/max/step numeric input pattern used throughout caps editing
-      SelectField.tsx
-      TextAreaField.tsx
+      TextField.tsx / NumberField.tsx / SelectField.tsx / TextAreaField.tsx / FieldRow.tsx
+      fields.css
     index.ts                 — barrel export
   data/                     — R2: Supabase access layer
-    supabaseClient.ts         — client init, mirrors the frozen app's env-var/error-guard pattern
-    types.ts                  — TypeScript interfaces for every table (Product, ProductVersion, Template, PortfolioHolding, ComplianceCheckResult, etc.)
-    products.ts                — getProduct, listProducts, persistProduct, publishProduct, createBlankProduct, createProductFromTemplate, createProductFromExisting
-    templates.ts                — CRUD for the templates table
-    holdings.ts                  — CRUD for portfolio_holdings
-    compliance.ts                  — runComplianceCheck, recordComplianceCheck, getEffectiveCapThresholds (ported from frozen app's logic, typed and unit-testable)
-  features/                — R3-R6: screen-level components, one subfolder per feature area
-    auth/
-    product-note/             — view/edit/version/publish (R3)
-    export/                     — Word/Excel/PDF/CSV (R4)
-    create/                       — 3-path create flow (R5)
-    templates/                     — Manage Templates screen (R5)
-    compliance/                      — Compliance screens (R6)
-  hooks/                    — shared React hooks (e.g. useProduct, useAuth)
-  utils/                    — pure helper functions (e.g. clampPct, formatCapsSentence-equivalent)
-__tests__/ or *.test.ts co-located — R6 onward, starting with compliance.ts as the highest-value test target (see ROADMAP.md R6)
+    supabaseClient.ts
+    types.ts                  — interfaces for every table; the product note `data` jsonb is a discriminated union (ProductNoteData), narrowed via lib/archetype.ts's type guards rather than a literal tag field, matching the frozen app
+    products.ts                — getProduct, listProducts, listVersionCounts, listProductVersions, persistProduct, publishProduct, unpublishToDraft, archiveProduct, unarchiveProduct
+    templates.ts                — CRUD for templates, including the shape-validation guard
+    holdings.ts                  — CRUD for portfolio_holdings + read access to portfolio_holdings_history (R6 will build the compliance logic on top of this, not re-build the data access)
+  lib/                      — pure helper functions. **Deviation from the R0 proposal's `utils/`**: `utils/` exists as an empty placeholder folder, everything actually landed in `lib/` instead. Rename/remove `utils/` if it stays unused past R4-R6.
+    archetype.ts               — isSingleSleeve/isStrategicAllocation/isRiskVariant/isGoalBased type guards
+    capsFormat.ts               — clampPct, formatCapsSentence, formatMinMaxRange
+    diff.ts                       — DIFF_FIELDS, word-level LCS diff for version history
+    weightSum.ts                   — sleeve/allocation weight-sum validation
+  features/
+    auth/                     — R2: BootScreen, LoginScreen
+    products/                 — R3: view/edit/version/publish/archive + Backup & Sync + Upgrade Roadmap. **Deviation from the R0 proposal's `product-note/`**: an empty `features/product-note/.gitkeep` placeholder still exists from the original plan but was never used — everything real is under `features/products/` (plural). Safe to delete the stray empty folder; flagged, not yet actioned.
+      AppShell.tsx                — sidebar nav + view routing (no router library)
+      ProductOverview.tsx / ProductDetail.tsx / ProductEditor.tsx / VersionHistory.tsx / ArchiveView.tsx / BackupView.tsx / RoadmapView.tsx
+      editors/                     — SleeveEditor, AllocationEditor, VariantEditor, GoalFrameworkEditor, KeyRisksEditor
+      shared/                      — CapFieldsRow, WeightSumBadge (used across editors)
+      products.css                 — everything the frozen app's global <style> block covers that design-system/*.css doesn't
+    export/                   — R4, not started (empty placeholder)
+    create/, templates/        — R5, not started (empty placeholders)
+    compliance/               — R6, not started (empty placeholder)
+  hooks/
+    useAuth.ts                — R2
+__tests__/ or *.test.ts co-located — still not started; R6 remains the planned starting point (see §6)
 ```
 
-This structure is a starting proposal, not a locked contract — expect it to be adjusted once real code exists and some of these boundaries turn out to be wrong. Update this section when that happens rather than letting the doc drift from reality (same discipline failure that happened with the frozen app's docs earlier this project — see repo-root `README.md` working agreement).
+Updated from the original R0 proposal per this doc's own instruction below — two folder names drifted during implementation (`product-note/`→`products/`, `utils/`→`lib/`) and are called out above rather than silently left inconsistent with the code.
 
 ## 4. Data model — no changes from the frozen app
 
@@ -101,7 +104,9 @@ RLS is unchanged: any authenticated user, full read/write, no per-user permissio
 
 ## 5. TypeScript strategy
 
-Strict mode on from R0. Every Supabase table gets a corresponding interface in `data/types.ts`, generated or hand-written to match the actual schema (cross-check against `list_tables`/`execute_sql` output, not assumption). The product note's `data` jsonb column is the trickiest type to model correctly, since it has 4 different shapes (single-sleeve / strategic-allocation / risk-variant / goal-based) sharing many common fields — likely modeled as a discriminated union or a base interface with optional archetype-specific fields, matching how the frozen app already distinguishes them (presence of `styleSleeves` vs. `strategicAllocationRanges` vs. `variants` vs. `goalFramework`). Decide the exact typing approach in R2 with real schema data in hand, not speculatively here.
+Strict mode on from R0, plus `noUncheckedIndexedAccess` (a stricter-than-default choice that types every array index access as possibly `undefined` — real implications documented in `ROADMAP.md`'s R3 section, where it caught 27 real errors on the first actual compiler run). Every Supabase table has a corresponding interface in `data/types.ts`, cross-checked against live schema/data, not assumed.
+
+**Decided in R2/R3, not just proposed**: the product note's `data` jsonb is `ProductNoteData`, a discriminated union of `SingleSleeveNote | StrategicAllocationNote | RiskVariantNote | GoalBasedNote`, narrowed by presence of an optional field (`styleSleeves`/`strategicAllocationRanges`/`variants`/`goalFramework`) rather than a literal tag — matching the frozen app's own `if(p.styleSleeves)`-style branching. Narrowing happens through type guards in `lib/archetype.ts`, not inline `in` checks scattered across components. One real pitfall hit while wiring this up, worth remembering for any future "patch this union generically" helper: `Partial<UnionType>` does not mean "any subset of fields from any member" — `keyof` on a union only includes fields common to *every* member, so a naive patch helper silently rejects valid archetype-specific patches as compile errors. Fixed with an intersection of each member's own `Partial<...>` (see `ProductEditor.tsx`'s `NotePatch` type).
 
 ## 6. Testing strategy
 

@@ -9,6 +9,9 @@ import { VersionHistory } from './VersionHistory'
 import { ArchiveView } from './ArchiveView'
 import { RoadmapView } from './RoadmapView'
 import { BackupView } from './BackupView'
+import { CsvUploadView } from './CsvUploadView'
+import { CreateProductView } from './CreateProductView'
+import { ManageTemplatesView } from './ManageTemplatesView'
 import { Button, Callout } from '../../design-system'
 import './products.css'
 
@@ -17,7 +20,7 @@ export interface AppShellProps {
   onSignOut: () => void
 }
 
-type View = 'overview' | 'product' | 'edit' | 'history' | 'archive' | 'roadmap' | 'backup'
+type View = 'overview' | 'product' | 'edit' | 'history' | 'archive' | 'roadmap' | 'backup' | 'csv' | 'create' | 'templates'
 
 const SIDEBAR_COLLAPSE_KEY = 'vriksha_pns_sidebar_collapsed_v1'
 
@@ -46,9 +49,14 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
     }
   }, [])
 
-  function refreshProducts() {
+  // Returns the fetch promise (not just fire-and-forget) so callers that need
+  // to act after fresh data lands -- specifically handleProductCreated below,
+  // which must not showEdit(newId) before that id actually exists in
+  // allProducts, or the "Product not found" fallback flashes briefly -- can
+  // chain onto it instead of racing it.
+  function refreshProducts(): Promise<void> {
     setLoadError(null)
-    Promise.all([listProducts({ includeArchived: true }), listVersionCounts()])
+    return Promise.all([listProducts({ includeArchived: true }), listVersionCounts()])
       .then(([products, counts]) => {
         setAllProducts(products)
         setVersionCounts(counts)
@@ -58,7 +66,6 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
 
   useEffect(() => {
     refreshProducts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function toggleCollapsed() {
@@ -104,6 +111,21 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
   function showBackup() {
     setView('backup')
     setCurrentId(null)
+  }
+  function showCsv() {
+    setView('csv')
+    setCurrentId(null)
+  }
+  function showCreate() {
+    setView('create')
+    setCurrentId(null)
+  }
+  function showManageTemplates() {
+    setView('templates')
+    setCurrentId(null)
+  }
+  function handleProductCreated(id: string) {
+    refreshProducts().then(() => showEdit(id))
   }
 
   async function handleArchive(id: string) {
@@ -219,8 +241,14 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className="nav-item" onClick={showOverview} style={{ marginBottom: 8 }}>
+        <div className="nav-item" onClick={showOverview}>
           <span>Overview</span>
+        </div>
+        <div className={`nav-item ${view === 'create' ? 'active' : ''}`} onClick={showCreate}>
+          <span>+ New Product</span>
+        </div>
+        <div className={`nav-item ${view === 'templates' ? 'active' : ''}`} style={{ marginBottom: 8 }} onClick={showManageTemplates}>
+          <span>Manage Templates</span>
         </div>
 
         <div className="nav-list">
@@ -244,6 +272,9 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
         >
           <span>Backup &amp; Sync</span>
         </div>
+        <div className={`nav-item ${view === 'csv' ? 'active' : ''}`} onClick={showCsv}>
+          <span>CSV Constituent Upload</span>
+        </div>
         <div className={`nav-item ${view === 'roadmap' ? 'active' : ''}`} onClick={showRoadmap}>
           <span>Upgrade Roadmap</span>
         </div>
@@ -257,7 +288,7 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
         {allProducts !== null && (
           <>
             {view === 'overview' && (
-              <ProductOverview products={active} versionCounts={versionCounts} onSelect={showProduct} />
+              <ProductOverview products={active} versionCounts={versionCounts} onSelect={showProduct} onCreate={showCreate} />
             )}
             {view === 'archive' && (
               <ArchiveView archivedProducts={archived} onSelect={showProduct} onRestore={handleUnarchive} />
@@ -266,6 +297,16 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
             {view === 'backup' && (
               <BackupView products={allProducts ?? []} versionCounts={versionCounts} onRefresh={refreshProducts} />
             )}
+            {view === 'csv' && <CsvUploadView products={active} onViewProduct={showProduct} />}
+            {view === 'create' && (
+              <CreateProductView
+                products={active}
+                onCreated={handleProductCreated}
+                onCancel={showOverview}
+                onManageTemplates={showManageTemplates}
+              />
+            )}
+            {view === 'templates' && <ManageTemplatesView />}
             {view === 'product' && current && (
               <ProductDetail
                 product={current}

@@ -623,3 +623,27 @@ tr:hover td {
   margin-top: 8px;
   flex-shrink: 0;
 }
+
+/* ── CSV CONSTITUENT UPLOAD (R4) ── */
+.upload-zone {
+  border: 1px dashed var(--moss);
+  border-radius: 2px;
+  padding: 30px;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  margin-top: 10px;
+  transition: 0.15s;
+}
+.upload-zone:hover,
+.upload-zone.dragging {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.csv-preview-note {
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  margin-top: 8px;
+}

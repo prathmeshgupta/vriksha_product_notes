@@ -25,8 +25,3 @@ export function KeyRisksEditor({ risks, onChange }: KeyRisksEditorProps) {
     </div>
   )
 }
-
-/** Appends a blank risk row -- matches the frozen app's `addRisk()` toolbar button. */
-export function addBlankRisk(risks: string[]): string[] {
-  return [...risks, '']
-}

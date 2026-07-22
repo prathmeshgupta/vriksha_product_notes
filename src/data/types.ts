@@ -150,6 +150,15 @@ export interface ProductNoteCommon {
   fees: string
   taxNote: string
   regulatoryRegime?: RegulatoryRegime
+  /**
+   * Disclosures/disclaimer section, added after a compliance review found
+   * neither the PDF nor Word exports had one at all. Optional and freeform
+   * so each product can carry its own reviewed text; falls back to
+   * `lib/disclosures.ts`'s DEFAULT_DISCLOSURES_TEXT (a marked draft) when
+   * unset. No migration needed -- this lives in the existing `data` jsonb
+   * column, same as every other ProductNoteCommon field.
+   */
+  disclosures?: string
 }
 
 export interface SingleSleeveNote extends ProductNoteCommon {
