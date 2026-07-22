@@ -226,6 +226,14 @@ export interface TemplateRow {
   description: string | null
   archetype: Archetype
   data: ProductNoteData
+  /**
+   * True for the 4 seeded archetype templates (T1-T4). Deletion is blocked
+   * for these both at the database level (a BEFORE DELETE trigger, migration
+   * `protect_builtin_templates_from_deletion`) and in the UI (ManageTemplatesView.tsx
+   * hides the Delete button) -- deleting one breaks the "From Archetype
+   * Template" Create path for every user, not just whoever clicked Delete.
+   */
+  is_builtin: boolean
   created_at: string
   updated_at: string
   updated_by: string | null

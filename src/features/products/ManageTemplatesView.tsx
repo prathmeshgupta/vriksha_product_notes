@@ -206,7 +206,9 @@ export function ManageTemplatesView() {
       </div>
       <Callout>
         Templates hold placeholder structure only — never real client content. Editing or deleting a template has
-        no effect on any already-created product; the clone happens once, at creation time.
+        no effect on any already-created product; the clone happens once, at creation time. The 4 built-in archetype
+        templates (marked "built-in" below) can be edited but not deleted — removing one would break the "From
+        Archetype Template" Create path for everyone, not just whoever clicked Delete.
       </Callout>
       {loadError && <Callout variant="danger">Failed to load templates: {loadError}</Callout>}
       {templates === null && !loadError && <p style={{ color: 'var(--text-dim)' }}>Loading templates…</p>}
@@ -217,16 +219,21 @@ export function ManageTemplatesView() {
         <div className="grid-overview">
           {templates.map((t) => (
             <Card key={t.id} interactive={false}>
-              <CardTag>{t.archetype}</CardTag>
+              <CardTag>
+                {t.archetype}
+                {t.is_builtin && <span style={{ marginLeft: 8, opacity: 0.7 }}>· built-in</span>}
+              </CardTag>
               <CardTitle>{t.name}</CardTitle>
               <CardBody>{(t.description || '').slice(0, 160)}</CardBody>
               <div className="toolbar" style={{ marginTop: 10 }}>
                 <Button size="small" onClick={() => startEdit(t)}>
                   Edit
                 </Button>
-                <Button size="small" variant="danger" onClick={() => handleDelete(t)}>
-                  Delete
-                </Button>
+                {!t.is_builtin && (
+                  <Button size="small" variant="danger" onClick={() => handleDelete(t)}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </Card>
           ))}

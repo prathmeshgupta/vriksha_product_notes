@@ -5,6 +5,7 @@ import { listProductVersions } from '../data/products'
 import { formatCapsSentence, formatMinMaxRange } from './capsFormat'
 import { isGoalBased, isRiskVariant, isSingleSleeve, isStrategicAllocation } from './archetype'
 import { DEFAULT_DISCLOSURES_TEXT } from './disclosures'
+import { DOC_THEME_HEX, hexToRgb } from './docTheme'
 
 /**
  * PDF export -- ported from the frozen app's PDF_THEME / pdfNewDoc / pdfHeader /
@@ -36,13 +37,20 @@ import { DEFAULT_DISCLOSURES_TEXT } from './disclosures'
 
 type RGB = [number, number, number]
 
+/**
+ * Colors now sourced from docTheme.ts's DOC_THEME_HEX rather than a second,
+ * independently-hand-picked set of RGB triplets -- this file and
+ * exportWord.ts previously drifted apart because there was no single place
+ * both drew from. See docTheme.ts for the full rationale (darkened for
+ * white-page legibility, matches tokens.css naming).
+ */
 const PDF_THEME = {
-  forest: [15, 26, 18] as RGB, // #0f1a12 -- headings
-  moss: [45, 74, 50] as RGB, // #2d4a32 -- section rules, sub-headings
-  sage: [90, 110, 94] as RGB, // darkened from #7a9e7e for legibility on white
-  gold: [150, 122, 45] as RGB, // darkened from #c4a84f for legibility on white
-  ink: [30, 38, 32] as RGB, // body text
-  faint: [120, 130, 122] as RGB, // meta text, footers
+  forest: hexToRgb(DOC_THEME_HEX.forest), // titles, section headings
+  moss: hexToRgb(DOC_THEME_HEX.moss), // section rules, sub-headings, table header fill
+  sage: hexToRgb(DOC_THEME_HEX.sage),
+  gold: hexToRgb(DOC_THEME_HEX.gold),
+  ink: hexToRgb(DOC_THEME_HEX.ink), // body text
+  faint: hexToRgb(DOC_THEME_HEX.faint), // meta text, footers
   pageWidth: 210, // A4 mm
   margin: 18,
 }
@@ -247,9 +255,9 @@ function pdfBullets(doc: jsPDF, items: string[] | undefined, y: number): number 
   return y + 2
 }
 
-const WHITE: RGB = [255, 255, 255]
-const TABLE_LINE_COLOR: RGB = [220, 225, 220]
-const TABLE_STRIPE_COLOR: RGB = [245, 248, 245]
+const WHITE: RGB = hexToRgb(DOC_THEME_HEX.white)
+const TABLE_LINE_COLOR: RGB = [220, 225, 220] // PDF-table-specific border shade, not part of the shared document theme
+const TABLE_STRIPE_COLOR: RGB = hexToRgb(DOC_THEME_HEX.tableStripe)
 
 /**
  * Reads `doc.lastAutoTable.finalY` through an `unknown` cast. Corrected

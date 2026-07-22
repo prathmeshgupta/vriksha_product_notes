@@ -1,6 +1,6 @@
 # Vriksha Product Note Studio — Rebuild Roadmap
 
-Last updated: 2026-07-20 (R4 implementation complete, pending your local verification). This is the phase-by-phase build order for the rebuild itself. See `STRATEGY.md` in this folder for why this rebuild exists and what does/doesn't change. See `ARCHITECTURE.md` in this folder for technical structure. The frozen app's own `ROADMAP.md` (repo root) still describes the original Phase 1-6 feature roadmap — this document is about rebuilding that same feature set (and eventually those same phases) on the new stack, not a replacement feature list.
+Last updated: 2026-07-22 (R4 + R5 + R5.5 committed and pushed as one combined commit, build/lint verified clean; functional/runtime verification against the actual running app still owed for all three — see status column). This is the phase-by-phase build order for the rebuild itself. See `STRATEGY.md` in this folder for why this rebuild exists and what does/doesn't change. See `ARCHITECTURE.md` in this folder for technical structure. The frozen app's own `ROADMAP.md` (repo root) still describes the original Phase 1-6 feature roadmap — this document is about rebuilding that same feature set (and eventually those same phases) on the new stack, not a replacement feature list.
 
 Update the status column as work ships.
 
@@ -10,9 +10,9 @@ Update the status column as work ships.
 | R1 | Design tokens + component library | ✅ Done (commit `1403dae` on `rebuild`, 2026-07-16) |
 | R2 | Data layer (Supabase client, TypeScript types, auth) | ✅ Done (commit `5068b13` on `rebuild`, 2026-07-20; verified locally — login, real Supabase data load, sign-out, build, lint all clean) |
 | R3 | Re-implement: product note viewing, editing, versioning/publish | ✅ Done (commit `1ae7cda` on `rebuild`, 2026-07-20; verified locally — build and lint clean, 0 errors) |
-| R4 | Re-implement: exports (Word/Excel/PDF), CSV upload | Implementation complete, not yet committed -- pending your local `npm install`/build/lint verification (see R4 section below) |
-| R5 | Re-implement: Create flow (blank/template/existing), Manage Templates | Not started |
-| R6 | Re-implement: Phase 1 Compliance Engine | Not started |
+| R4 | Re-implement: exports (Word/Excel/PDF), CSV upload | Committed + pushed (commit `78d9956` on `rebuild`, 2026-07-22, combined with R5/R5.5 below — build/lint verified clean, 0 errors/warnings). **Functional verification against the running app not yet done** — see R4 section below. |
+| R5 | Re-implement: Create flow (blank/template/existing), Manage Templates | Committed + pushed (commit `78d9956`, same as above — build/lint verified clean). **Functional verification not yet done** — see R5 section below. |
+| R6 | Re-implement: Phase 1 Compliance Engine | Not started — next up, but only after R4/R5/R5.5 functional verification (see below) |
 | R7 | Parity verification against frozen app | Not started |
 | R8 | Cutover decision | Not started |
 | R9 | Rebuild the Lite Claude.ai/Cowork artifact companion | Not started — deliberately deferred until after R8 (see below) |

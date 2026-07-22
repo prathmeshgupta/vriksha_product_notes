@@ -142,7 +142,6 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
         </div>
         <div className="toolbar">
           <Button onClick={onBack}>← Back to Note</Button>
-          <Button onClick={() => patch({ keyRisks: [...(data.keyRisks || []), ''] })}>+ Add Risk</Button>
           <Button variant="primary" onClick={handlePublish}>
             Publish Version
           </Button>

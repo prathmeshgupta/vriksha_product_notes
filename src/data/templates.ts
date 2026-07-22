@@ -123,6 +123,17 @@ export async function updateTemplate(
   if (error) throw error
 }
 
+/**
+ * The 4 built-in templates (T1-T4, `is_builtin = true`) reject deletion at
+ * the database level via a BEFORE DELETE trigger (migration
+ * `protect_builtin_templates_from_deletion`) -- this function doesn't
+ * duplicate that check client-side; Supabase surfaces the trigger's
+ * `RAISE EXCEPTION` message as `error.message` here, which is already
+ * written to be human-readable, so callers can display it directly.
+ * ManageTemplatesView.tsx additionally hides the Delete button for built-in
+ * templates so this path is normally never hit from the UI at all -- the
+ * trigger is the defense-in-depth backstop for any other entry point.
+ */
 export async function deleteTemplate(id: string): Promise<void> {
   const { error } = await sb.from('templates').delete().eq('id', id)
   if (error) throw error
