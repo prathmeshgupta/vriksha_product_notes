@@ -462,6 +462,19 @@ tr:hover td {
 .editable-table-row.two {
   grid-template-columns: 1fr 34px;
 }
+/* ProductCompliance.tsx's holdings table (code, name, sector, weight, remove)
+   uses "five" but no matching modifier existed -- it silently fell back to
+   the base 4-column .editable-table-row rule above with 5 actual grid items
+   in it. CSS grid's default auto-flow placed the 5th item (the remove "x"
+   button) onto an implicit second row instead of the row's rightmost column,
+   which is exactly the "orphaned x sitting below-left of each holding, every
+   row split across two lines" bug reported from a real screenshot. Fixing by
+   adding the missing explicit 5-column track definition, following the same
+   proportions as .four (flexible text columns, fixed 90px for the .input-sm
+   weight field, fixed 34px for .row-remove). */
+.editable-table-row.five {
+  grid-template-columns: 1fr 1.2fr 110px 90px 34px;
+}
 .row-remove {
   background: transparent;
   border: 1px solid var(--moss);
