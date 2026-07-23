@@ -1,0 +1,73 @@
+name: Deploy rebuild staging preview
+
+# R8 step 1 (staging-first cutover, see rebuild/ROADMAP.md). Builds the
+# `rebuild` branch's Vite app and publishes it into a `rebuild-preview/`
+# subfolder of `main` -- the branch GitHub Pages currently serves from
+# (classic "Deploy from a branch" mode; no other Actions workflow exists on
+# `main`, confirmed 2026-07-24).
+#
+# This is deliberately additive and non-destructive to the live site:
+# `keep_files: true` means every file already in `main` (the live frozen
+# app's index.html and its assets) is left exactly as-is. Pushing to `main`
+# still triggers GitHub's own classic Pages rebuild, which is how the new
+# subfolder becomes reachable -- that rebuild republishes the frozen app
+# unchanged alongside the new preview folder.
+#
+# Result once this first runs (allow a few minutes for Pages to rebuild):
+#   https://<owner>.github.io/<repo>/rebuild-preview/
+#
+# Nothing here changes what real clients see at the site root. Promoting
+# this from "preview" to "the live site" is a separate, deliberate decision
+# (R8's hard-cutover / gradual-parallel-run step), not something this
+# workflow does on its own.
+
+on:
+  push:
+    branches: [rebuild]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout rebuild branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check + build (staging base path)
+        env:
+          VITE_BASE_PATH: /vriksha_product_notes/rebuild-preview/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Use app.html as the preview folder's index.html
+        # GitHub Pages serves index.html by default for a directory request
+        # (i.e. the bare /rebuild-preview/ URL). The Vite build's entry point
+        # is intentionally named app.html (see vite.config.ts's comment on
+        # why), so rename just the built output -- not the source file -- for
+        # this deploy.
+        run: mv dist/app.html dist/index.html
+
+      - name: Publish dist/ into main's rebuild-preview/ folder
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: main
+          publish_dir: ./dist
+          destination_dir: rebuild-preview
+          keep_files: true
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "Deploy rebuild staging preview [skip ci]"

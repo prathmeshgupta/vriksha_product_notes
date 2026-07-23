@@ -10,8 +10,17 @@ import react from '@vitejs/plugin-react'
 // 370-byte stub -- recovered from the `main` branch, but the root cause was
 // exactly this naming collision, hence the rename).
 //
+// Base path for built asset URLs. Defaults to '/' for local dev and for any
+// deploy that serves this build from a domain root. The R8 staging workflow
+// (.github/workflows/deploy-rebuild-preview.yml) overrides this via
+// VITE_BASE_PATH so asset URLs resolve correctly when the build is published
+// under a subfolder (rebuild-preview/) of the live GitHub Pages site instead
+// of at the root -- see rebuild/ROADMAP.md R8.
+const basePath = process.env.VITE_BASE_PATH || '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base: basePath,
   plugins: [react()],
   build: {
     rollupOptions: {
