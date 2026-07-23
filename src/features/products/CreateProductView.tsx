@@ -3,6 +3,7 @@ import { saveAs } from 'file-saver'
 import type { ProductRow, TemplateRow } from '../../data/types'
 import { listTemplates } from '../../data/templates'
 import { createBlankProduct, createProductFromExisting, createProductFromJson, createProductFromTemplate } from '../../data/products'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, SelectField, TextAreaField, TextField } from '../../design-system'
 import './products.css'
 
@@ -73,7 +74,7 @@ export function CreateProductView({ products, onCreated, onCancel, onManageTempl
         if (first && !templateId) setTemplateId(first.id)
       })
       .catch((err: unknown) => {
-        if (!cancelled) setTemplateLoadError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setTemplateLoadError(getErrorMessage(err))
       })
     return () => {
       cancelled = true
@@ -117,13 +118,13 @@ export function CreateProductView({ products, onCreated, onCancel, onManageTempl
         try {
           parsed = JSON.parse(jsonText)
         } catch (err) {
-          throw new Error('Not valid JSON: ' + (err instanceof Error ? err.message : String(err)))
+          throw new Error('Not valid JSON: ' + (getErrorMessage(err)))
         }
         newId = await createProductFromJson(parsed, name.trim(), code.trim() || undefined)
       }
       onCreated(newId)
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : String(err))
+      setCreateError(getErrorMessage(err))
     } finally {
       setCreating(false)
     }

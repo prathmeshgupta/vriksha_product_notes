@@ -8,6 +8,7 @@ import {
   listTemplates,
   updateTemplate,
 } from '../../data/templates'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, Card, CardBody, CardTag, CardTitle, SelectField, TextAreaField, TextField } from '../../design-system'
 import './products.css'
 
@@ -65,7 +66,7 @@ export function ManageTemplatesView() {
     setLoadError(null)
     listTemplates()
       .then(setTemplates)
-      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : String(err)))
+      .catch((err: unknown) => setLoadError(getErrorMessage(err)))
   }
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export function ManageTemplatesView() {
       await deleteTemplate(t.id)
       refresh()
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err))
+      setLoadError(getErrorMessage(err))
     }
   }
 
@@ -110,7 +111,7 @@ export function ManageTemplatesView() {
     try {
       parsedData = JSON.parse(dataText)
     } catch (err) {
-      setSaveError('Structure field is not valid JSON: ' + (err instanceof Error ? err.message : String(err)))
+      setSaveError('Structure field is not valid JSON: ' + (getErrorMessage(err)))
       return
     }
     setSaving(true)
@@ -130,7 +131,7 @@ export function ManageTemplatesView() {
           `${err.message} Add at least: category (string), assetClasses (array), code (string), name (string).`,
         )
       } else {
-        setSaveError(err instanceof Error ? err.message : String(err))
+        setSaveError(getErrorMessage(err))
       }
     } finally {
       setSaving(false)

@@ -9,6 +9,7 @@ import { exportProductDocx } from '../../lib/exportWord'
 import { exportClientSummaryPdf, exportProductPdf } from '../../lib/exportPdf'
 import { emailNoteVia } from '../../lib/email'
 import { DEFAULT_DISCLOSURES_TEXT } from '../../lib/disclosures'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, Pill, StatusPill } from '../../design-system'
 import './products.css'
 
@@ -72,7 +73,7 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
     try {
       await action()
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : String(err))
+      setExportError(getErrorMessage(err))
     } finally {
       setExporting(false)
     }

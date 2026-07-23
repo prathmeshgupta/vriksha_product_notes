@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { PortfolioHoldingHistoryRow, ProductRow } from '../../data/types'
 import { listHoldingsCountByProduct, listLastComplianceCheckByProduct } from '../../data/holdings'
+import { getErrorMessage } from '../../lib/errors'
 import { Callout, Card, CardBody, CardTag, CardTitle, StatusPill } from '../../design-system'
 import './products.css'
 
@@ -30,7 +31,7 @@ export function ComplianceOverview({ products, onSelect }: ComplianceOverviewPro
         setLastChecks(checks)
       })
       .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setLoadError(getErrorMessage(err))
       })
     return () => {
       cancelled = true

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ProductNoteData, ProductRow, ProductVersionRow } from '../../data/types'
 import { listProductVersions, persistProduct, unpublishToDraft } from '../../data/products'
 import { DIFF_FIELDS, diffText, fieldValueAt } from '../../lib/diff'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout } from '../../design-system'
 import './products.css'
 
@@ -74,7 +75,7 @@ export function VersionHistory({ product, onBack, onChanged }: VersionHistoryPro
       await unpublishToDraft(product.id, product.data)
       onChanged({ ...product, status: 'draft' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(getErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -97,7 +98,7 @@ export function VersionHistory({ product, onBack, onChanged }: VersionHistoryPro
       await persistProduct(product.id, { data: revertedData, status: 'draft', archived: product.archived })
       onChanged({ ...product, data: revertedData, status: 'draft' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(getErrorMessage(err))
     } finally {
       setBusy(false)
     }

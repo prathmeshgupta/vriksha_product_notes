@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ProductRow } from '../../data/types'
 import { exportAllProductsXlsx } from '../../lib/exportExcel'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, Card, CardBody, CardTag, CardTitle, StatusPill } from '../../design-system'
 import './products.css'
 
@@ -39,7 +40,7 @@ export function ProductOverview({ products, versionCounts, onSelect, onCreate }:
     try {
       await exportAllProductsXlsx(products)
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : String(err))
+      setExportError(getErrorMessage(err))
     } finally {
       setExporting(false)
     }

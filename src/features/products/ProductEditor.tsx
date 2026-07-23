@@ -10,6 +10,7 @@ import type {
 import { persistProduct, publishProduct } from '../../data/products'
 import { getLastHoldingsCheck } from '../../data/holdings'
 import { isGoalBased, isRiskVariant, isSingleSleeve, isStrategicAllocation } from '../../lib/archetype'
+import { getErrorMessage } from '../../lib/errors'
 import { SleeveEditor } from './editors/SleeveEditor'
 import { AllocationEditor } from './editors/AllocationEditor'
 import { VariantEditor } from './editors/VariantEditor'
@@ -160,7 +161,7 @@ export function ProductEditor({ product, onBack, onPublished, onNavigateToCompli
         lastCheck = await getLastHoldingsCheck(product.id)
       } catch (err) {
         setCheckingCompliance(false)
-        setPublishError(err instanceof Error ? err.message : String(err))
+        setPublishError(getErrorMessage(err))
         return
       }
       setCheckingCompliance(false)
@@ -184,7 +185,7 @@ export function ProductEditor({ product, onBack, onPublished, onNavigateToCompli
       await publishProduct(product.id, data, note || '')
       onPublished()
     } catch (err) {
-      setPublishError(err instanceof Error ? err.message : String(err))
+      setPublishError(getErrorMessage(err))
     }
   }
 

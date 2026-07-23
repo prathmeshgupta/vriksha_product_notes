@@ -162,14 +162,19 @@
   height: 1px;
   background: var(--gold-dim);
 }
-.nav-group-toggle {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  color: var(--gold);
-  width: 10px;
+.nav-category-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: var(--sage);
+  width: 12px;
   flex-shrink: 0;
-  text-align: center;
-  order: -1;
+}
+.nav-category-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  opacity: 0.55;
 }
 
 .nav-item {
@@ -195,6 +200,10 @@
   color: var(--mist);
   border-left: 2px solid var(--gold);
   padding-left: 8px;
+}
+.nav-item-accent {
+  color: var(--gold);
+  font-weight: 600;
 }
 .nav-item .code {
   font-family: 'JetBrains Mono', monospace;

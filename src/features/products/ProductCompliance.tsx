@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PortfolioHoldingHistoryRow, PortfolioHoldingRow, ProductRow } from '../../data/types'
 import { addHolding, deleteHolding, listHoldings, listHoldingsHistory, recordComplianceCheck, updateHolding } from '../../data/holdings'
 import { clampPct } from '../../lib/capsFormat'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, StatusPill } from '../../design-system'
 import './products.css'
 
@@ -44,7 +45,7 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
         setHoldings(h)
         setHistory(hist)
       })
-      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : String(err)))
+      .catch((err: unknown) => setLoadError(getErrorMessage(err)))
   }, [product.id])
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
       await recordComplianceCheck(product.id, product.data, holdings ?? [])
       refresh()
     } catch (err) {
-      setCheckError(err instanceof Error ? err.message : String(err))
+      setCheckError(getErrorMessage(err))
     } finally {
       setChecking(false)
     }
@@ -79,7 +80,7 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
       const updated = await updateHolding(id, fields)
       patchLocalRow(id, updated)
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err))
+      setLoadError(getErrorMessage(err))
     } finally {
       setRowBusy(null)
     }
@@ -90,7 +91,7 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
       const created = await addHolding(product.id, { instrument_code: '', instrument_name: '', weight_pct: 0 })
       setHoldings((prev) => (prev ? [...prev, created] : [created]))
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err))
+      setLoadError(getErrorMessage(err))
     }
   }
 
@@ -100,7 +101,7 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
       await deleteHolding(id)
       setHoldings((prev) => (prev ? prev.filter((h) => h.id !== id) : prev))
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err))
+      setLoadError(getErrorMessage(err))
     }
   }
 
@@ -141,9 +142,23 @@ export function ProductCompliance({ product, onBackToEdit, onAllProducts }: Prod
               <div className="kv" style={{ alignItems: 'flex-start' }} key={i}>
                 <div className="k">
                   {c.name}{' '}
-                  <StatusPill kind={c.status === 'pass' ? 'compliant' : c.status === 'fail' ? 'non-compliant' : 'draft'} showDot>
-                    {STATUS_LABEL[c.status] || c.status}
-                  </StatusPill>
+                  {c.status === 'pass' || c.status === 'fail' ? (
+                    <StatusPill kind={c.status === 'pass' ? 'compliant' : 'non-compliant'} showDot>
+                      {STATUS_LABEL[c.status] || c.status}
+                    </StatusPill>
+                  ) : (
+                    // Deliberately NOT a StatusPill: the design system only has two pill
+                    // colors (green/amber, matching the frozen app -- see StatusPill.css),
+                    // and amber is already used for "Fail". Routing "No data"/"Manual"
+                    // through the same amber pill would make an unrun/manual-only check
+                    // visually indistinguishable from an actual compliance failure -- a
+                    // real severity-masking risk on a compliance screen. Plain muted text
+                    // keeps it unambiguous without adding an undisclosed third color to a
+                    // shared, already-verified component.
+                    <span style={{ color: 'var(--text-faint)', fontSize: '0.7rem', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {STATUS_LABEL[c.status] || c.status}
+                    </span>
+                  )}
                 </div>
                 <div className="v">{c.detail}</div>
               </div>

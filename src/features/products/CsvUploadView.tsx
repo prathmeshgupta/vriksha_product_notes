@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import Papa from 'papaparse'
 import type { ProductRow } from '../../data/types'
 import { replaceHoldings } from '../../data/holdings'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout, SelectField } from '../../design-system'
 import './products.css'
 
@@ -132,7 +133,7 @@ export function CsvUploadView({ products, onViewProduct }: CsvUploadViewProps) {
       )
       setSaved(true)
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err))
+      setSaveError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }

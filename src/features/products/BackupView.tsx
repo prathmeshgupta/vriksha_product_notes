@@ -5,6 +5,7 @@ import { listProductVersions } from '../../data/products'
 import { listTemplates } from '../../data/templates'
 import { listHoldings, listHoldingsHistory } from '../../data/holdings'
 import { sb } from '../../data/supabaseClient'
+import { getErrorMessage } from '../../lib/errors'
 import { Button, Callout } from '../../design-system'
 import './products.css'
 
@@ -89,7 +90,7 @@ export function BackupView({ products, versionCounts, onRefresh }: BackupViewPro
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(getErrorMessage(err))
     } finally {
       setDownloading(false)
     }
