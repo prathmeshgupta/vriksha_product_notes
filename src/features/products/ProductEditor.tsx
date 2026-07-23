@@ -19,6 +19,7 @@ import { KeyRisksEditor } from './editors/KeyRisksEditor'
 import { CapFieldsRow } from './shared/CapFieldsRow'
 import { Button, Callout, FieldRow, SelectField, TextAreaField, TextField } from '../../design-system'
 import { DEFAULT_DISCLOSURES_TEXT } from '../../lib/disclosures'
+import { generateTaxGuidance } from '../../lib/taxGuidance'
 import './products.css'
 
 export interface ProductEditorProps {
@@ -236,7 +237,23 @@ export function ProductEditor({ product, onBack, onPublished, onNavigateToCompli
           onChange={(e) => patch({ minInvestment: e.target.value })}
         />
         <TextField label="Fees" value={data.fees || ''} onChange={(e) => patch({ fees: e.target.value })} />
-        <TextField label="Tax Note" value={data.taxNote || ''} onChange={(e) => patch({ taxNote: e.target.value })} />
+        <TextAreaField label="Tax Note" value={data.taxNote || ''} onChange={(e) => patch({ taxNote: e.target.value })} rows={4} />
+        <div style={{ marginTop: -6, marginBottom: 12 }}>
+          <Button
+            size="small"
+            onClick={() => {
+              const guidance = generateTaxGuidance({ assetClasses: data.assetClasses || [] })
+              if (data.taxNote?.trim() && !window.confirm("Replace the current Tax Note with freshly generated guidance? This overwrites what's there now.")) return
+              patch({ taxNote: guidance })
+            }}
+          >
+            Insert Current Tax Guidance
+          </Button>
+          <span className="topbar-sub" style={{ marginLeft: 10 }}>
+            Sourced, current-law reference text (STCG/LTCG rates, REIT/InvIT distribution treatment if applicable) — review before
+            publishing, this is a starting point, not tax advice.
+          </span>
+        </div>
         <SelectField
           label="Regulatory Regime"
           value={data.regulatoryRegime || 'india_sebi'}

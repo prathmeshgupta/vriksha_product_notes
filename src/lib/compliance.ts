@@ -144,11 +144,48 @@ export function runComplianceCheck(product: ProductNoteData, holdings: Portfolio
       }
     }
 
-    // SEBI disclosure checklist -- human-confirmed, not mechanically checkable.
+    // Model portfolio disclosure completeness -- SEBI's 8-Jan-2025 circular
+    // "Guidelines for Investment Advisers" / the parallel RA circular
+    // (aligned with the Dec-2024 SEBI (Research Analysts) Regulations, 2014
+    // and SEBI (Investment Adviser) Regulations, 2013 amendments) brought
+    // "model portfolios" -- a basket of securities for which a research
+    // report is issued -- within the scope of research services, and
+    // requires RAs/IAs offering them to define and disclose: methodology,
+    // frequency of portfolio review/rebalancing, benchmarking, and
+    // investment horizon, for each such portfolio. Compliance required by
+    // 30-Jun-2025 for RAs already offering model portfolios.
+    // (https://www.sebi.gov.in/legal/circulars/jan-2025/guidelines-for-investment-advisers_90632.html)
+    //
+    // This is genuinely mechanically checkable -- unlike the deeper
+    // regulatory judgment calls below, "is the required disclosure text
+    // present" is a presence check, not an interpretation of the rule. Kept
+    // separate from the general disclosure checklist item below (which
+    // covers everything else that still needs a human).
+    const methodology = product.selectionMethodology || product.portfolioConstruction || ''
+    const missingDisclosures: string[] = []
+    if (!product.objective.trim()) missingDisclosures.push('objective')
+    if (!methodology.trim()) missingDisclosures.push('selection methodology / portfolio construction')
+    if (!product.benchmark.trim()) missingDisclosures.push('benchmark')
+    if (!product.rebalanceFrequency.trim()) missingDisclosures.push('rebalance frequency')
+    if (!product.riskProfile.trim()) missingDisclosures.push('risk profile (investment horizon proxy)')
+    if (!product.suitability.trim()) missingDisclosures.push('suitability')
+    checks.push({
+      name: 'Model portfolio disclosure completeness (SEBI, Jan 2025 circular)',
+      status: missingDisclosures.length ? 'fail' : 'pass',
+      detail: missingDisclosures.length
+        ? `Missing required disclosure(s): ${missingDisclosures.join(', ')}.`
+        : 'Methodology, benchmark, rebalance frequency, risk profile, and suitability are all populated.',
+    })
+
+    // Everything else the Jan-2025 circular and general SEBI disclosure
+    // practice expects (e.g. that the disclosed methodology is actually
+    // accurate, that research-report-per-constituent obligations are met,
+    // conflict-of-interest disclosures, etc.) requires human judgment this
+    // engine can't verify from the note's text alone.
     checks.push({
       name: 'SEBI disclosure requirement checklist',
       status: 'manual',
-      detail: 'Human-confirmed item — not automatically checked. Confirm required disclosures are current before publishing.',
+      detail: 'Human-confirmed item — not automatically checked. Confirm required disclosures are accurate and current before publishing.',
     })
   } else {
     checks.push({

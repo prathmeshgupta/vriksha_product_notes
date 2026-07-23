@@ -32,23 +32,23 @@ const ROADMAP_ITEMS: RoadmapItem[] = [
   },
   {
     title: 'Live constituent management UI.',
-    body: 'Replace CSV-upload-only with an in-dashboard portfolio builder: search instruments, set weights with real-time sum validation, drag-and-drop sleeve rebalancing, diff view against the prior rebalance.',
+    body: 'In-dashboard portfolio builder is live: add/edit/remove holdings with real-time weight-sum validation, plus a diff view against the prior rebalance (or the current unsaved draft) — see the Compliance tab. Still pending: instrument search/autocomplete (codes are typed manually today) and drag-and-drop sleeve rebalancing.',
   },
   {
     title: 'smallcase integration.',
-    body: "Direct API push from the dashboard to smallcase's portfolio management endpoints for constituent/weight updates on publish.",
+    body: 'A direct, authenticated API push to smallcase needs smallcase\'s own Investment Manager API credentials, which this app has never had. In the meantime, the diff view (Compliance tab) can export a rebalance-instruction CSV — action/instrument/old-and-new-weight — ready to hand to smallcase\'s own bulk tools or a broker/dealer desk. If real API credentials become available, the same diff data is what a live push would send.',
   },
   {
     title: 'Compliance engine.',
-    body: 'Automated checks before any rebalance is published: single-stock/sector concentration caps, SEBI disclosure requirements, risk-profile-to-allocation consistency, maker-checker approval workflow.',
+    body: 'Live for single-stock/sector concentration caps AND model-portfolio disclosure completeness (methodology, benchmark, rebalance frequency, risk profile, suitability — required by SEBI\'s Jan-2025 model-portfolio circular), with publish gating on a failed check. Still pending: risk-profile-to-allocation consistency checks and a maker-checker approval workflow (needs a user-roles model first).',
   },
   {
     title: 'Live pricing & performance tracking.',
-    body: 'Daily prices for all constituents to compute live NAV, drawdown, tracking error vs. benchmark, factor exposure drift.',
+    body: 'On-demand single-symbol price lookup is live (Compliance tab). Full NAV/drawdown/tracking-error/factor-exposure tracking across a whole book is NOT built: the connected data feed is free-tier (~25 lookups/day, account-wide), nowhere near enough for that. Needs a paid data plan or different vendor before the fuller version is realistic.',
   },
   {
     title: 'Tax module.',
-    body: 'STCG/LTCG tracking per lot, REIT/InvIT distribution component split, FoF taxation — explicitly out of scope for this version.',
+    body: "General, current-law tax-character guidance (STCG/LTCG rates, REIT/InvIT distribution treatment) can now be inserted into a product's Tax Note field. True per-client, per-lot STCG/LTCG tracking is NOT built and can't be with this app's current data model — it tracks model-portfolio target weights, not any individual client's actual purchase prices/dates/quantities. That would need a client-account data source this app has never had.",
   },
   {
     title: 'Client-facing reporting.',
