@@ -18,6 +18,7 @@ export interface ProductDetailProps {
   onHistory: () => void
   onArchive: () => void
   onUnarchive: () => void
+  onCompliance: () => void
 }
 
 function riskClass(r: string | undefined): string {
@@ -47,7 +48,7 @@ function Kv({ label, children }: { label: string; children: ReactNode }) {
  * `alert()` (the frozen app's approach), matching the Callout-based error
  * pattern already used by BackupView's download handler.
  */
-export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchive }: ProductDetailProps) {
+export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchive, onCompliance }: ProductDetailProps) {
   const data = product.data
   const [versionCount, setVersionCount] = useState<number | null>(null)
   const [variantIdx, setVariantIdx] = useState(0)
@@ -99,6 +100,7 @@ export function ProductDetail({ product, onEdit, onHistory, onArchive, onUnarchi
             Edit
           </Button>
           <Button onClick={onHistory}>History &amp; Diff</Button>
+          <Button onClick={onCompliance}>Compliance</Button>
           <Button disabled={exporting} onClick={() => runExport(() => exportProductDocx(product))}>
             → Word
           </Button>

@@ -1,14 +1,58 @@
 import { sb } from './supabaseClient'
-import type { PortfolioHoldingRow, PortfolioHoldingHistoryRow } from './types'
+import type { PortfolioHoldingRow, PortfolioHoldingHistoryRow, ProductNoteData } from './types'
+import { runComplianceCheck } from '../lib/compliance'
 
 /**
- * Typed CRUD for `portfolio_holdings` plus read access to
- * `portfolio_holdings_history` (the compliance-check audit log). Matches
+ * Typed CRUD for `portfolio_holdings` plus read/write access to
+ * `portfolio_holdings_history` (the audit log -- covers both compliance-check
+ * runs and CSV-upload replace events as of R6, see
+ * `holdings_history_event_type_and_csv_upload_audit` migration). Matches
  * the frozen app's addHolding/updateHolding/deleteHolding exactly (repo
- * root index.html). The compliance-check *logic* itself (runComplianceCheck,
- * getEffectiveCapThresholds) is R6 territory -- this file only reads/writes
- * the holdings rows, it doesn't evaluate them.
+ * root index.html). The compliance-check *evaluation* logic itself
+ * (runComplianceCheck, getEffectiveCapThresholds) lives in lib/compliance.ts
+ * as pure functions with no Supabase dependency -- this file only calls into
+ * it and persists the result, it doesn't duplicate the rule logic.
  */
+
+/**
+ * One holdings-count per product, in a single query -- backs the Compliance
+ * overview grid (all active products) so listing N products' holding counts
+ * doesn't fire N separate `listHoldings` calls. Same pattern as
+ * data/products.ts's `listVersionCounts()`.
+ */
+export async function listHoldingsCountByProduct(): Promise<Map<string, number>> {
+  const { data, error } = await sb.from('portfolio_holdings').select('product_id')
+  if (error) throw error
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    const id = row.product_id as string
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * One most-recent-compliance_check row per product, in a single query --
+ * same N+1-avoidance reasoning as listHoldingsCountByProduct above. Supabase
+ * JS has no `DISTINCT ON`, so this fetches every compliance_check row
+ * ordered newest-first and keeps only the first (= most recent) one seen per
+ * product_id client-side -- fine at this app's scale (a boutique product
+ * shelf, not thousands of rows), same tradeoff `listVersionCounts()` already
+ * makes for product_versions.
+ */
+export async function listLastComplianceCheckByProduct(): Promise<Map<string, PortfolioHoldingHistoryRow>> {
+  const { data, error } = await sb
+    .from('portfolio_holdings_history')
+    .select('*')
+    .eq('event_type', 'compliance_check')
+    .order('rebalance_number', { ascending: false })
+  if (error) throw error
+  const map = new Map<string, PortfolioHoldingHistoryRow>()
+  for (const row of (data ?? []) as PortfolioHoldingHistoryRow[]) {
+    if (!map.has(row.product_id)) map.set(row.product_id, row)
+  }
+  return map
+}
 
 export async function listHoldings(productId: string): Promise<PortfolioHoldingRow[]> {
   const { data, error } = await sb
@@ -129,6 +173,7 @@ export async function replaceHoldings(
   return (data ?? []) as PortfolioHoldingRow[]
 }
 
+/** Full unified audit trail -- both compliance_check and csv_upload events, most recent first. */
 export async function listHoldingsHistory(productId: string): Promise<PortfolioHoldingHistoryRow[]> {
   const { data, error } = await sb
     .from('portfolio_holdings_history')
@@ -139,7 +184,66 @@ export async function listHoldingsHistory(productId: string): Promise<PortfolioH
   return (data ?? []) as PortfolioHoldingHistoryRow[]
 }
 
+/**
+ * The most recent *compliance_check* event specifically -- deliberately
+ * filtered by event_type, not just "the most recent history row of any
+ * kind." A csv_upload row has `compliance_check_result: null`; if this
+ * function returned whichever event happened most recently regardless of
+ * type, a CSV upload made after the last real check would make this return
+ * a null-result row, and the publish-gate logic in ProductEditor.tsx (which
+ * reads `lastCheck.compliance_check_result.compliant`) would break or
+ * silently treat "nobody has re-checked since the CSV changed the holdings"
+ * as "no check has ever been run." Filtering server-side also means this
+ * never has to fetch/scan the full history just to find one row.
+ */
 export async function getLastHoldingsCheck(productId: string): Promise<PortfolioHoldingHistoryRow | null> {
+  const { data, error } = await sb
+    .from('portfolio_holdings_history')
+    .select('*')
+    .eq('product_id', productId)
+    .eq('event_type', 'compliance_check')
+    .order('rebalance_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data as PortfolioHoldingHistoryRow | null
+}
+
+/**
+ * Runs the compliance engine (lib/compliance.ts) against a product's current
+ * draft holdings and persists the result as a new portfolio_holdings_history
+ * row (event_type='compliance_check'). rebalance_number is a single counter
+ * shared with csv_upload events for the same product (see the R6 migration's
+ * comment) -- computed here as max-existing+1 rather than left to a DB
+ * default, matching the frozen app's recordComplianceCheck()'s own approach
+ * (repo root index.html) of computing it in application code.
+ */
+export async function recordComplianceCheck(
+  productId: string,
+  product: ProductNoteData,
+  holdings: PortfolioHoldingRow[],
+): Promise<PortfolioHoldingHistoryRow> {
+  const result = runComplianceCheck(product, holdings)
+
   const history = await listHoldingsHistory(productId)
-  return history[0] ?? null
+  const nextRebalanceNumber = history.length ? Math.max(...history.map((h) => h.rebalance_number)) + 1 : 1
+
+  const {
+    data: { user },
+  } = await sb.auth.getUser()
+
+  const { data, error } = await sb
+    .from('portfolio_holdings_history')
+    .insert({
+      product_id: productId,
+      rebalance_number: nextRebalanceNumber,
+      holdings_snapshot: holdings,
+      compliance_check_result: result,
+      event_type: 'compliance_check',
+      created_by: user?.id ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data as PortfolioHoldingHistoryRow
 }

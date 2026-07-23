@@ -12,6 +12,8 @@ import { BackupView } from './BackupView'
 import { CsvUploadView } from './CsvUploadView'
 import { CreateProductView } from './CreateProductView'
 import { ManageTemplatesView } from './ManageTemplatesView'
+import { ComplianceOverview } from './ComplianceOverview'
+import { ProductCompliance } from './ProductCompliance'
 import { Button, Callout } from '../../design-system'
 import './products.css'
 
@@ -20,7 +22,19 @@ export interface AppShellProps {
   onSignOut: () => void
 }
 
-type View = 'overview' | 'product' | 'edit' | 'history' | 'archive' | 'roadmap' | 'backup' | 'csv' | 'create' | 'templates'
+type View =
+  | 'overview'
+  | 'product'
+  | 'edit'
+  | 'history'
+  | 'archive'
+  | 'roadmap'
+  | 'backup'
+  | 'csv'
+  | 'create'
+  | 'templates'
+  | 'compliance'
+  | 'productCompliance'
 
 const SIDEBAR_COLLAPSE_KEY = 'vriksha_pns_sidebar_collapsed_v1'
 
@@ -123,6 +137,14 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
   function showManageTemplates() {
     setView('templates')
     setCurrentId(null)
+  }
+  function showCompliance() {
+    setView('compliance')
+    setCurrentId(null)
+  }
+  function showProductCompliance(id: string) {
+    setView('productCompliance')
+    setCurrentId(id)
   }
   function handleProductCreated(id: string) {
     refreshProducts().then(() => showEdit(id))
@@ -266,6 +288,13 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
         </div>
 
         <div
+          className={`nav-item ${view === 'compliance' || view === 'productCompliance' ? 'active' : ''}`}
+          onClick={showCompliance}
+        >
+          <span>Compliance</span>
+        </div>
+
+        <div
           className={`nav-item ${view === 'backup' ? 'active' : ''}`}
           style={{ marginTop: 16 }}
           onClick={showBackup}
@@ -307,6 +336,14 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
               />
             )}
             {view === 'templates' && <ManageTemplatesView />}
+            {view === 'compliance' && <ComplianceOverview products={active} onSelect={showProductCompliance} />}
+            {view === 'productCompliance' && current && (
+              <ProductCompliance
+                product={current}
+                onBackToEdit={() => showEdit(current.id)}
+                onAllProducts={showCompliance}
+              />
+            )}
             {view === 'product' && current && (
               <ProductDetail
                 product={current}
@@ -314,6 +351,7 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
                 onHistory={() => showHistory(current.id)}
                 onArchive={() => handleArchive(current.id)}
                 onUnarchive={() => handleUnarchive(current.id)}
+                onCompliance={() => showProductCompliance(current.id)}
               />
             )}
             {view === 'edit' && current && (
@@ -324,6 +362,7 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
                   refreshProducts()
                   showHistory(current.id)
                 }}
+                onNavigateToCompliance={() => showProductCompliance(current.id)}
               />
             )}
             {view === 'history' && current && (
@@ -336,7 +375,7 @@ export function AppShell({ user, onSignOut }: AppShellProps) {
                 }}
               />
             )}
-            {(view === 'product' || view === 'edit' || view === 'history') && !current && (
+            {(view === 'product' || view === 'edit' || view === 'history' || view === 'productCompliance') && !current && (
               <p style={{ color: 'var(--text-dim)' }}>
                 Product not found. <Button onClick={showOverview}>Back to overview</Button>
               </p>

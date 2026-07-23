@@ -252,17 +252,48 @@ export interface PortfolioHoldingRow {
 }
 
 /**
- * compliance_check_result shape matches the frozen app's runComplianceCheck()
- * output -- ported precisely when compliance.ts is built in R6, typed as
- * Record<string, unknown> here since R2 doesn't yet re-implement the
- * compliance engine itself (see rebuild/ROADMAP.md R6).
+ * Compliance-check result shapes -- defined here (not in lib/compliance.ts,
+ * which computes them) so this file stays the single source of truth for
+ * every persisted shape, matching the rest of this file's own convention.
+ * lib/compliance.ts imports these rather than declaring its own copies, to
+ * avoid a reverse dependency (this file must not import from lib/, since
+ * lib/archetype.ts, data/products.ts, data/templates.ts etc. all import
+ * types from here already).
+ */
+export type ComplianceCheckStatus = 'pass' | 'fail' | 'no-data' | 'manual'
+
+export interface ComplianceCheckItem {
+  name: string
+  status: ComplianceCheckStatus
+  detail: string
+}
+
+export interface ComplianceCheckResult {
+  compliant: boolean
+  checks: ComplianceCheckItem[]
+  regime: string
+  checkedAt: string
+}
+
+/**
+ * `event_type` and `compliance_check_result`'s nullability added in R6
+ * (migration `holdings_history_event_type_and_csv_upload_audit`) -- this
+ * table previously only had one real writer (the compliance-check flow this
+ * same phase builds), so `compliance_check_result` was NOT NULL. R4's CSV
+ * Constituent Upload writes here too now (via the extended
+ * `replace_portfolio_holdings` RPC), and an upload has no check result to
+ * report -- just a snapshot of what the holdings became. A DB check
+ * constraint enforces the pairing: `compliance_check` rows always carry a
+ * result, `csv_upload` rows never do; this type mirrors that with
+ * `ComplianceCheckResult | null` rather than leaving it always-required.
  */
 export interface PortfolioHoldingHistoryRow {
   id: string
   product_id: string
   rebalance_number: number
   holdings_snapshot: PortfolioHoldingRow[]
-  compliance_check_result: Record<string, unknown>
+  event_type: 'compliance_check' | 'csv_upload'
+  compliance_check_result: ComplianceCheckResult | null
   approved_by: string | null
   created_at: string
   created_by: string | null

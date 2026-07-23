@@ -8,6 +8,7 @@ import type {
   StrategicAllocationNote,
 } from '../../data/types'
 import { persistProduct, publishProduct } from '../../data/products'
+import { getLastHoldingsCheck } from '../../data/holdings'
 import { isGoalBased, isRiskVariant, isSingleSleeve, isStrategicAllocation } from '../../lib/archetype'
 import { SleeveEditor } from './editors/SleeveEditor'
 import { AllocationEditor } from './editors/AllocationEditor'
@@ -23,6 +24,7 @@ export interface ProductEditorProps {
   product: ProductRow
   onBack: () => void
   onPublished: () => void
+  onNavigateToCompliance: () => void
 }
 
 /**
@@ -56,10 +58,11 @@ type NotePatch = Partial<SingleSleeveNote> &
   Partial<RiskVariantNote> &
   Partial<GoalBasedNote>
 
-export function ProductEditor({ product, onBack, onPublished }: ProductEditorProps) {
+export function ProductEditor({ product, onBack, onPublished, onNavigateToCompliance }: ProductEditorProps) {
   const [data, setData] = useState<ProductNoteData>(product.data)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [publishError, setPublishError] = useState<string | null>(null)
+  const [checkingCompliance, setCheckingCompliance] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isFirstRender = useRef(true)
 
@@ -116,7 +119,64 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
     setData((prev) => ({ ...prev, ...fields }) as ProductNoteData)
   }
 
+  /**
+   * Publish gating (ROADMAP.md R6): blocked only if the *last recorded*
+   * compliance check for this product says Non-Compliant, and only for
+   * regimes where the checks are actually binding (india_sebi today,
+   * matching lib/compliance.ts's runComplianceCheck). No maker-checker, no
+   * override-with-reason -- both deliberately deferred, matching the frozen
+   * app's own `publishProduct()` (repo root index.html, ~line 2480). The
+   * confirm() copy below is verbatim from the frozen app. If no check has
+   * ever been run, Publish is still allowed: holdings/compliance is a
+   * separate, additive workflow from note publishing, not a hard
+   * prerequisite for it.
+   *
+   * Deliberate deviation from the frozen app: on Cancel, the frozen app
+   * always sends the user to the all-products Compliance Overview
+   * (`showView('compliance')`). Here, `onNavigateToCompliance` (wired in
+   * AppShell.tsx) goes straight to *this* product's Compliance screen --
+   * the user just tried to publish this exact product and got told to go
+   * fix compliance, so landing them on the one screen with the holdings
+   * they need to fix is strictly more useful than a list they'd have to
+   * re-search. Flagged per STRATEGY.md's "disclose deliberate deviations"
+   * rule.
+   *
+   * Also flushes any pending debounced autosave (see SAVE_DEBOUNCE_MS above)
+   * up front. The gating decision itself already reads live local `data`
+   * state, so this doesn't change what gets checked -- but if Cancel sends
+   * the user to the Compliance screen, that screen reads `product.data` off
+   * AppShell's Supabase-backed `allProducts` state, not this component's
+   * local state. Flushing here starts the write immediately instead of
+   * waiting out the up-to-800ms debounce, narrowing the window where the
+   * Compliance screen could still show pre-edit data.
+   */
   async function handlePublish() {
+    flushSave()
+    const regime = data.regulatoryRegime || 'india_sebi'
+    if (regime === 'india_sebi') {
+      setCheckingCompliance(true)
+      let lastCheck
+      try {
+        lastCheck = await getLastHoldingsCheck(product.id)
+      } catch (err) {
+        setCheckingCompliance(false)
+        setPublishError(err instanceof Error ? err.message : String(err))
+        return
+      }
+      setCheckingCompliance(false)
+      if (lastCheck?.compliance_check_result && lastCheck.compliance_check_result.compliant === false) {
+        const proceedAnyway = window.confirm(
+          `The last compliance check for ${data.code} came back Non-Compliant (checked ${new Date(lastCheck.created_at).toLocaleString()}).\n\n` +
+            `Publish is normally blocked in this state — fix holdings and re-check on the Compliance screen first.\n\n` +
+            `Click Cancel to stop and go fix compliance, or OK to proceed anyway (no override-reason is logged for this yet — see ARCHITECTURE.md on maker-checker deferral).`,
+        )
+        if (!proceedAnyway) {
+          onNavigateToCompliance()
+          return
+        }
+      }
+    }
+
     const note = window.prompt('Optional note for this version (what changed / why publishing now):', '')
     if (note === null) return // cancelled
     setPublishError(null)
@@ -142,8 +202,8 @@ export function ProductEditor({ product, onBack, onPublished }: ProductEditorPro
         </div>
         <div className="toolbar">
           <Button onClick={onBack}>← Back to Note</Button>
-          <Button variant="primary" onClick={handlePublish}>
-            Publish Version
+          <Button variant="primary" disabled={checkingCompliance} onClick={handlePublish}>
+            {checkingCompliance ? 'Checking…' : 'Publish Version'}
           </Button>
         </div>
       </div>
